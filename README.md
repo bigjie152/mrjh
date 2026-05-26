@@ -13,9 +13,11 @@
 - 根目录已初始化 Git。
 - GitHub 远程仓库已配置为 `https://github.com/bigjie152/mrjh.git`。
 - 旧前端原型已移动到 `references/ui-prototype/每日计划与复盘`。
-- 已清理旧原型里的 `node_modules`、`dist` 和 `.DS_Store`。
-- 当前还没有正式全栈应用代码。
-- 下一步应先确认全栈技术方案，然后再开始脚手架和代码实现。
+- 正式项目已重新搭建为 Cloudflare 全栈应用。
+- 前端使用 React + TypeScript + Vite。
+- 后端使用 Cloudflare Worker API。
+- 数据库使用 Cloudflare D1。
+- 当前已支持今日记录、历史列表、基础统计、JSON 导出和手帐长图导出。
 
 ## 为什么需要 Git
 
@@ -34,16 +36,16 @@ git commit -m "docs: initialize full-stack project plan"
 git push -u origin main
 ```
 
-## 推荐技术方向
+## 技术方向
 
-考虑你希望部署到 Cloudflare，并且需要长期保存所有历史记录，推荐第一版使用 Cloudflare 原生全栈方案：
+考虑你希望部署到 Cloudflare，并且需要长期保存所有历史记录，第一版使用 Cloudflare 原生全栈方案：
 
 - 前端：React + TypeScript + Vite
-- 样式：Tailwind CSS
-- API：Cloudflare Workers 或 Pages Functions
+- 样式：原生 CSS，延续参考原型的纸感手帐风格
+- API：Cloudflare Workers
 - 数据库：Cloudflare D1
-- ORM / SQL：优先评估 Drizzle ORM，也可以直接使用 D1 SQL
-- 部署：GitHub + Cloudflare Pages / Workers
+- SQL：直接使用 D1 SQL
+- 部署：GitHub + Cloudflare Workers
 - 鉴权：第一版建议使用 Cloudflare Access 保护个人应用
 - 本地体验：前端可缓存当天编辑内容，后端负责长期持久化
 
@@ -73,10 +75,122 @@ git push -u origin main
 - 移动 App 原生端
 - 过度复杂的报表系统
 
+## 本地开发
+
+安装依赖：
+
+```bash
+npm install
+```
+
+应用本地 D1 迁移：
+
+```bash
+npm run db:migrate:local
+```
+
+启动开发服务：
+
+```bash
+npm run dev
+```
+
+默认地址：
+
+```text
+http://localhost:3000
+```
+
+类型检查：
+
+```bash
+npm run typecheck
+```
+
+生产构建：
+
+```bash
+npm run build
+```
+
+## D1 数据库
+
+当前 D1 binding 名称为：
+
+```text
+DB
+```
+
+本地数据库迁移文件：
+
+```text
+migrations/0001_initial.sql
+```
+
+远程部署前，需要在 Cloudflare 创建 D1 数据库，然后把 `wrangler.jsonc` 中的 `database_id` 替换成真实 ID。
+
+创建远程数据库的命令示例：
+
+```bash
+npx wrangler d1 create mrjh
+```
+
+应用远程迁移：
+
+```bash
+npm run db:migrate:remote
+```
+
+## Cloudflare 部署
+
+推荐流程：
+
+1. 推送代码到 GitHub 仓库 `bigjie152/mrjh`。
+2. 在 Cloudflare 创建 D1 数据库 `mrjh`。
+3. 更新 `wrangler.jsonc` 的 `database_id`。
+4. 执行远程 D1 migration。
+5. 执行 `npm run deploy` 部署 Worker 和前端资源。
+6. 需要私密访问时，使用 Cloudflare Access 保护域名。
+
+部署命令：
+
+```bash
+npm run deploy
+```
+
+## API
+
+当前 Worker API：
+
+```text
+GET    /api/health
+GET    /api/entries
+GET    /api/entries/:date
+PUT    /api/entries/:date
+DELETE /api/entries/:date
+GET    /api/stats/summary
+GET    /api/export/json
+POST   /api/import/json
+```
+
 ## 目录说明
 
 ```text
 .
+├── migrations
+│   └── 0001_initial.sql
+├── shared
+│   ├── time.ts
+│   └── types.ts
+├── src
+│   ├── App.tsx
+│   ├── api.ts
+│   ├── index.css
+│   └── main.tsx
+├── worker
+│   └── index.ts
+├── wrangler.jsonc
+├── vite.config.ts
 ├── README.md
 ├── PRD.md
 ├── references
@@ -84,22 +198,6 @@ git push -u origin main
 │       └── 每日计划与复盘
 └── .gitignore
 ```
-
-正式全栈代码建议后续放在根目录，例如：
-
-```text
-.
-├── app
-│   ├── frontend
-│   └── worker
-├── packages
-│   ├── db
-│   └── shared
-├── docs
-└── references
-```
-
-具体结构可以在开始写代码前再确认。
 
 ## 开发原则
 
@@ -112,13 +210,10 @@ git push -u origin main
 
 ## 下一阶段建议
 
-1. 确认技术栈和目录结构。
-2. 创建全栈项目脚手架。
-3. 接入 Cloudflare D1 本地开发环境。
-4. 设计数据库 schema 和 API。
-5. 复刻参考原型的核心 UI。
-6. 完成记录保存、历史查询和基础统计。
-7. 部署到 GitHub + Cloudflare。
+1. 接入真实 Cloudflare D1 database id。
+2. 推送到 GitHub 并配置 Cloudflare 部署。
+3. 增加 Cloudflare Access 私密访问保护。
+4. 增加 JSON 导入前的数据校验预览。
+5. 继续打磨移动端和长图导出效果。
 
 详细产品需求见 [PRD.md](./PRD.md)。
-

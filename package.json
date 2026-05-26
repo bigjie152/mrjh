@@ -1,0 +1,32 @@
+{
+  "name": "mrjh",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host=0.0.0.0 --port=3000",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply mrjh --local",
+    "db:migrate:remote": "wrangler d1 migrations apply mrjh --remote"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.16.0",
+    "@cloudflare/workers-types": "^4.20260524.0",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.8.3",
+    "vite": "^7.2.4",
+    "wrangler": "^4.51.0"
+  }
+}
