@@ -1,6 +1,6 @@
 import React from 'react';
 import { DailyReview, PlannedBlock, ActualBlock, CATEGORIES } from '../types';
-import { Award, Zap, Compass, HelpCircle, AlertCircle, Play, TrendingUp } from 'lucide-react';
+import { Award, TrendingUp } from 'lucide-react';
 import { formatMinutes } from '../sampleData';
 
 interface ReviewSectionProps {
@@ -77,7 +77,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
               <span className="font-serif text-base font-bold text-emerald-800">{formatMinutes(totalActualMinutes)}</span>
             </div>
           </div>
-          <div className="text-xs text-stone-450 border-t border-stone-200/50 pt-2 font-mono">
+          <div className="text-xs text-stone-500 border-t border-stone-200/50 pt-2 font-mono">
             差额: <span className={totalActualMinutes - totalPlannedMinutes >= 0 ? 'text-amber-800' : 'text-emerald-700'}>
               {totalActualMinutes - totalPlannedMinutes >= 0 ? '+' : ''}{totalActualMinutes - totalPlannedMinutes} 分钟
             </span>
@@ -93,11 +93,11 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
           <div className="my-2 text-center h-12 flex items-center justify-center">
             <div>
               <span className="text-3xl font-serif font-black text-[#5c4033] tracking-tight">{alignmentScore}%</span>
-              <span className="text-xs text-stone-400 font-sans block mt-0.5">校准分</span>
+              <span className="text-xs text-stone-400 font-sans block mt-0.5">ALIGNMENT SCORE</span>
             </div>
           </div>
-          <div className="text-[10px] text-stone-450 border-t border-stone-200/50 pt-2 leading-tight">
-            {alignmentScore > 80 ? '极佳：偏差较小，时间掌控稳定' : alignmentScore > 65 ? '良好：正在逐步校准时间感' : '待调适：建议给任务预留更多缓冲'}
+          <div className="text-[10px] text-stone-500 border-t border-stone-200/50 pt-2 leading-tight">
+            {alignmentScore > 80 ? '👑 极佳！偏差极小，时间掌控自如' : alignmentScore > 65 ? '👍 优秀！在调整中渐入佳境' : '💪 有待调适。请合理放宽缓冲时间'}
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
                     <span className="text-stone-400">{d.planned}m</span>
                     <span className="mx-1 text-stone-300">→</span>
                     <span className="font-semibold text-stone-700">{d.actual}m</span>
-                    <span className={`ml-1 px-1 rounded-xs font-bold ${d.diff > 0 ? 'text-amber-700' : d.diff < 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
+                    <span className={`ml-1 px-1 rounded-sm font-bold ${d.diff > 0 ? 'text-amber-700' : d.diff < 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
                       ({d.diff >= 0 ? '+' : ''}{d.diff}m)
                     </span>
                   </div>
@@ -161,7 +161,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
         {/* General Notes */}
         <div className="flex flex-col h-full bg-[#FAF5EC]/30 border border-dashed border-[#EADFC9] rounded-xl p-4 relative">
           <label className="text-xs font-serif font-black text-[#5c4033] flex items-center gap-1.5 mb-2">
-            <span className="text-amber-600">✎</span> 睡前随笔 / 今日复盘日记
+            <span className="text-amber-600">✍️</span> 精英随笔 / 睡前复盘日记
           </label>
           <textarea
             value={review.generalNotes}
@@ -175,7 +175,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
             }}
           />
           <div className="absolute bottom-3 right-4 text-[10px] font-mono text-[#8B5A2B]/60">
-            睡前复盘
+            CRAFTED NOTEBOOK
           </div>
         </div>
       </div>

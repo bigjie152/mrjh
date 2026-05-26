@@ -1,7 +1,25 @@
 import { DailyPlannerEntry, WEEKDAYS } from './types';
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+export function getLocalDateString(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function shiftDateString(dateStr: string, dayOffset: number): string {
+  const date = parseLocalDate(dateStr);
+  date.setDate(date.getDate() + dayOffset);
+  return getLocalDateString(date);
+}
+
 export function getWeekDayName(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return WEEKDAYS[date.getDay()];
 }
 
@@ -247,7 +265,7 @@ export const initialSampleData: DailyPlannerEntry[] = [
     },
   },
   {
-    date: '2026-05-26',
+    date: '2026-05-26', // 示例记录
     weekDay: '星期二',
     tasks: [
       { id: 1, text: '完成每日时间管理产品的前端页面开发', completed: false, notes: '需要包含高拟真手帐感UI' },

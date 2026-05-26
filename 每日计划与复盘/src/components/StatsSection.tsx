@@ -1,7 +1,7 @@
 import React from 'react';
 import { DailyPlannerEntry, CATEGORIES } from '../types';
-import { Award, CheckSquare, Clock, Zap, Flame, BarChart3, PieChart, Activity, ShieldAlert } from 'lucide-react';
-import { formatMinutes } from '../sampleData';
+import { Award, CheckSquare, Clock, Flame, BarChart3, Activity, ShieldAlert } from 'lucide-react';
+import { formatMinutes, getLocalDateString, shiftDateString } from '../sampleData';
 
 interface StatsSectionProps {
   entries: DailyPlannerEntry[];
@@ -15,23 +15,23 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
 
   let currentStreak = 0;
   if (sortedDates.length > 0) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
+    const yesterdayStr = shiftDateString(todayStr, -1);
     
     // Check if recorded today or yesterday to continue streak
     const hasTodayOrYesterday = sortedDates.includes(todayStr) || sortedDates.includes(yesterdayStr);
     
     if (hasTodayOrYesterday) {
       currentStreak = 1;
-      let checkDate = new Date();
+      let checkDateStr = todayStr;
       // start from yesterday or today
       if (!sortedDates.includes(todayStr)) {
-        checkDate.setDate(checkDate.getDate() - 1);
+        checkDateStr = yesterdayStr;
       }
       
       while (true) {
-        checkDate.setDate(checkDate.getDate() - 1);
-        const formatStr = checkDate.toISOString().split('T')[0];
+        checkDateStr = shiftDateString(checkDateStr, -1);
+        const formatStr = checkDateStr;
         if (sortedDates.includes(formatStr)) {
           currentStreak++;
         } else {
@@ -151,6 +151,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
             <span className="block text-[11px] font-sans font-bold text-stone-500 uppercase tracking-wider">平均时间掌控度</span>
             {(() => {
               let sum = 0;
+              let measuredDays = 0;
               entries.forEach((e) => {
                 let overlap = 0, possible = 0;
                 CATEGORIES.forEach((cat) => {
@@ -159,9 +160,12 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
                   overlap += Math.min(p, a);
                   possible += Math.max(p, a);
                 });
-                if (possible > 0) sum += overlap / possible;
+                if (possible > 0) {
+                  sum += overlap / possible;
+                  measuredDays++;
+                }
               });
-              const avg = entries.length > 0 ? Math.round((sum / entries.length) * 100) : 0;
+              const avg = measuredDays > 0 ? Math.round((sum / measuredDays) * 100) : 0;
               return (
                 <>
                   <span className="font-serif text-3xl font-black text-[#5c4033]">{avg}%</span>
@@ -365,11 +369,11 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
             )}
             <div className="absolute bottom-2 right-4 flex items-center gap-3 text-[10px] text-stone-400 font-sans">
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2 bg-amber-700/60 inline-block rounded-xs" />
+                <span className="w-2.5 h-2 bg-amber-700/60 inline-block rounded-sm" />
                 预计
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2 bg-emerald-600 inline-block rounded-xs" />
+                <span className="w-2.5 h-2 bg-emerald-600 inline-block rounded-sm" />
                 实际
               </span>
             </div>
@@ -389,7 +393,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-serif font-extrabold text-[#DE6B48]">{entry.date} ({entry.weekDay})</span>
-                  <span className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200 px-1 py-0.2 rounded-xs">最大偏离记录</span>
+                  <span className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200 px-1 py-0.5 rounded-sm">最大偏离记录</span>
                 </div>
                 <p className="text-xs text-stone-750 font-serif leading-relaxed line-clamp-2 italic mb-2">
                   &ldquo;{entry.review.biggestDeviation}&rdquo;

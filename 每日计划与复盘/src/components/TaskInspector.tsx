@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TaskItem } from '../types';
-import { CheckCircle2, Circle, Edit2, Play, BookOpen, User, Sparkles, Footprints, AlertCircle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Circle, Edit2, Trash2 } from 'lucide-react';
 
 interface TaskInspectorProps {
   tasks: TaskItem[];
@@ -63,7 +63,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#D4AF37]" />
           待办事项清单 <span className="font-sans text-xs text-amber-800 bg-amber-100 py-0.5 px-2 rounded-full border border-amber-200">1-6 核心制</span>
         </h2>
-        <span className="text-xs font-mono text-stone-500">今日核心事项</span>
+        <span className="text-xs font-mono text-stone-500">TODAY'S MISSIONS</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

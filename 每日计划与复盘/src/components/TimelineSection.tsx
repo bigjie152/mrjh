@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { PlannedBlock, ActualBlock, CategoryType, CATEGORIES, TaskItem, ConfirmOptions } from '../types';
-import { Plus, Copy, Trash2, Edit2, Check, ArrowRight, CornerDownRight, AlertTriangle, RefreshCw } from 'lucide-react';
+import { PlannedBlock, ActualBlock, CategoryType, CATEGORIES, TaskItem } from '../types';
+import { Plus, Copy, Trash2, Edit2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { calculateTimeDiffMinutes, formatMinutes } from '../sampleData';
 
 interface TimelineSectionProps {
@@ -9,7 +9,6 @@ interface TimelineSectionProps {
   actualBlocks: ActualBlock[];
   onUpdatePlanned: (blocks: PlannedBlock[]) => void;
   onUpdateActual: (blocks: ActualBlock[]) => void;
-  onRequestConfirm: (options: ConfirmOptions) => void;
 }
 
 const INDEX_SYMBOLS = ['①', '②', '③', '④', '⑤', '⑥'];
@@ -20,7 +19,6 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   actualBlocks,
   onUpdatePlanned,
   onUpdateActual,
-  onRequestConfirm,
 }) => {
   // Modal/Form State
   const [showPlannedForm, setShowPlannedForm] = useState(false);
@@ -157,25 +155,20 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   };
 
   const handleCopyAllPlanned = () => {
-    onRequestConfirm({
-      title: '复制全部计划',
-      message: '将左侧所有计划复制到实际记录中，当前已有实际记录会保留并一起排序。',
-      confirmLabel: '复制全部',
-      onConfirm: () => {
-        const copied = plannedBlocks.map((p) => ({
-          id: `a-copied-${Date.now()}-${p.id}`,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          taskRef: p.taskRef,
-          content: p.content,
-          category: p.category,
-          actualMinutes: p.estimatedMinutes,
-        }));
+    if (window.confirm('是否将所有计划复制为实际记录？这会覆盖/合并到当前的实际完成表。')) {
+      const copied = plannedBlocks.map((p) => ({
+        id: `a-copied-${Date.now()}-${p.id}`,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        taskRef: p.taskRef,
+        content: p.content,
+        category: p.category,
+        actualMinutes: p.estimatedMinutes,
+      }));
 
-        const combined = [...actualBlocks, ...copied].sort((a, b) => a.startTime.localeCompare(b.startTime));
-        onUpdateActual(combined);
-      },
-    });
+      const combined = [...actualBlocks, ...copied].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      onUpdateActual(combined);
+    }
   };
 
   const handleEditPlanned = (block: PlannedBlock) => {
@@ -354,7 +347,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
         <div className="flex items-center justify-between pl-6 mb-6">
           <div>
-            <h3 className="font-serif text-lg font-bold text-emerald-850 tracking-wide flex items-center gap-1.5" style={{ color: '#065f46' }}>
+            <h3 className="font-serif text-lg font-bold text-emerald-900 tracking-wide flex items-center gap-1.5" style={{ color: '#065f46' }}>
               <span>实际完成</span>
               <span className="text-xs font-sans font-normal text-stone-500 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-100">
                 {actualBlocks.length} 条记录
@@ -396,7 +389,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyAllPlanned}
-                  className="mt-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-850 border border-emerald-200 px-3 py-1.2 text-xs rounded-md transition-all font-medium flex items-center gap-1"
+                  className="mt-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-1.5 text-xs rounded-md transition-all font-medium flex items-center gap-1"
                 >
                   <Copy className="w-3.5 h-3.5" /> 一键对照拷贝全部计划
                 </button>
@@ -591,7 +584,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       {showActualForm && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-[#FAF8F5] border-2 border-emerald-600 rounded-xl p-6 max-w-md w-full shadow-lg relative animate-in fade-in zoom-in-95 duration-150">
-            <h4 className="font-serif text-lg font-bold text-emerald-850 border-b border-emerald-100 pb-2 mb-4">
+            <h4 className="font-serif text-lg font-bold text-emerald-900 border-b border-emerald-100 pb-2 mb-4">
               {editingActualId ? '修改实际时间记录' : '记录真实经过'}
             </h4>
             <form onSubmit={handleSaveActual} className="space-y-4">
@@ -665,7 +658,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               <div>
                 <label className="block text-xs font-medium text-amber-800 mb-1 flex items-center gap-1">
                   <span>偏差原因/备注</span>
-                  <span className="text-[10px] bg-amber-50 font-sans font-normal border border-amber-200 py-0.2 px-1 text-amber-700 rounded-sm">当产生偏差时必填</span>
+                  <span className="text-[10px] bg-amber-50 font-sans font-normal border border-amber-200 py-0.5 px-1 text-amber-700 rounded-sm">当产生偏差时必填</span>
                 </label>
                 <input
                   type="text"

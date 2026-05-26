@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { DailyPlannerEntry, CATEGORIES, ConfirmOptions } from '../types';
-import { Search, Calendar, Copy, ArrowRight, CheckSquare, Clock, Zap, BookOpen, AlertCircle, Edit, Trash2 } from 'lucide-react';
-import { formatMinutes } from '../sampleData';
+import { DailyPlannerEntry, CATEGORIES } from '../types';
+import { Search, Calendar, Copy, Edit, Trash2 } from 'lucide-react';
+import { formatMinutes, getLocalDateString } from '../sampleData';
 
 interface HistorySectionProps {
   entries: DailyPlannerEntry[];
   onSelectDate: (date: string) => void;
   onDeployAsTemplate: (entry: DailyPlannerEntry) => void;
   onDeleteEntry: (date: string) => void;
-  onRequestConfirm: (options: ConfirmOptions) => void;
 }
 
 export const HistorySection: React.FC<HistorySectionProps> = ({
@@ -16,7 +15,6 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
   onSelectDate,
   onDeployAsTemplate,
   onDeleteEntry,
-  onRequestConfirm,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -52,7 +50,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
     let possible = 0;
     CATEGORIES.forEach((cat) => {
       const p = entry.plannedBlocks.filter((b) => b.category === cat.value).reduce((s, c) => s + c.estimatedMinutes, 0);
-      const a = entry.actualBlocks.filter((b) => b.category === cat.value).reduce((s, c) => s + c.actualMinutes, 1e-9); // tiny offset
+      const a = entry.actualBlocks.filter((b) => b.category === cat.value).reduce((s, c) => s + c.actualMinutes, 0);
       overlap += Math.min(p, a);
       possible += Math.max(p, a);
     });
@@ -106,7 +104,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredEntries.map((entry) => {
             const m = getMetrics(entry);
-            const isToday = entry.date === new Date().toISOString().split('T')[0];
+            const isToday = entry.date === getLocalDateString();
 
             return (
               <div
@@ -116,8 +114,8 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                 }`}
               >
                 {/* Vintage stamp effect for date */}
-                <div className="absolute top-4 right-4 bg-[#FAF5EB] border border-[#DE6B48] px-2.5 py-1 text-center rounded-xs rotate-3 shadow-xs">
-                  <span className="block font-mono text-[10px] text-stone-400 leading-none">日期</span>
+                <div className="absolute top-4 right-4 bg-[#FAF5EB] border border-[#DE6B48] px-2.5 py-1 text-center rounded-sm rotate-3 shadow-xs">
+                  <span className="block font-mono text-[10px] text-stone-400 leading-none">DATE STAMP</span>
                   <span className="font-serif font-black text-sm text-[#DE6B48] leading-none block mt-1">{entry.date}</span>
                 </div>
 
@@ -130,7 +128,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                 {/* Grid stats */}
                 <div className="grid grid-cols-3 gap-2 bg-stone-50 border border-stone-200/60 rounded-xl p-3 mb-4 text-center">
                   <div>
-                    <span className="block text-[10px] text-stone-450 uppercase tracking-wider">待办完成</span>
+                    <span className="block text-[10px] text-stone-500 uppercase tracking-wider">待办完成</span>
                     <span className="font-serif text-sm font-bold text-stone-800">
                       {m.completedCount}/{m.totalTasks}
                     </span>
@@ -143,14 +141,14 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                   </div>
 
                   <div>
-                    <span className="block text-[10px] text-stone-450 uppercase tracking-wider">实耗/预计</span>
+                    <span className="block text-[10px] text-stone-500 uppercase tracking-wider">实耗/预计</span>
                     <span className="font-serif text-sm font-bold text-stone-800">
                       {Math.round(m.actualMin / 60)}h/{Math.round(m.plannedMin / 60)}h
                     </span>
                   </div>
 
                   <div>
-                    <span className="block text-[10px] text-stone-450 uppercase tracking-wider">预估匹配</span>
+                    <span className="block text-[10px] text-stone-500 uppercase tracking-wider">预估匹配</span>
                     <span className="font-serif text-sm font-bold text-emerald-800">
                       {m.accuracy}%
                     </span>
@@ -159,7 +157,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
 
                 {/* Sub-item summaries */}
                 <div className="space-y-2 mb-4 h-24 overflow-y-auto pr-1">
-                  <span className="text-[10px] font-sans font-bold text-stone-450 uppercase tracking-wider block">核心清单：</span>
+                  <span className="text-[10px] font-sans font-bold text-stone-500 uppercase tracking-wider block">核心清单：</span>
                   {entry.tasks.filter(t => t.text.trim().length > 0).slice(0, 3).map((task, i) => (
                     <div key={task.id} className="flex items-center gap-1.5 text-xs">
                       <span className="text-stone-400 font-serif">
@@ -213,13 +211,9 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      onRequestConfirm({
-                        title: '删除这一天的记录',
-                        message: `确定删除 ${entry.date} 的计划与复盘吗？删除后无法从应用内恢复。`,
-                        confirmLabel: '删除',
-                        tone: 'danger',
-                        onConfirm: () => onDeleteEntry(entry.date),
-                      });
+                      if (window.confirm(`确定删除 ${entry.date} 的记录吗？此操作不可逆。`)) {
+                        onDeleteEntry(entry.date);
+                      }
                     }}
                     className="cursor-pointer p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors"
                     title="彻底删除此页"

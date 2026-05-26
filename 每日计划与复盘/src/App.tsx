@@ -1,75 +1,139 @@
-import React, { useState, useEffect } from 'react';
-import { DailyPlannerEntry, ConfirmOptions } from './types';
-import { initialSampleData, getWeekDayName } from './sampleData';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DailyPlannerEntry } from './types';
+import { initialSampleData, getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
 import { TaskInspector } from './components/TaskInspector';
 import { TimelineSection } from './components/TimelineSection';
 import { ReviewSection } from './components/ReviewSection';
 import { HistorySection } from './components/HistorySection';
 import { StatsSection } from './components/StatsSection';
-import { AlertCircle, Archive, BarChart2, BookOpen, Calendar, CheckCircle2, Copy, Download, X } from 'lucide-react';
+import { Calendar, Download, BarChart2, BookOpen, Copy, Archive } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
-type ToastTone = 'success' | 'warning' | 'error';
-
-interface ToastMessage {
-  id: number;
-  message: string;
-  tone: ToastTone;
-}
-
-const getTodayDateString = () => {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().split('T')[0];
-};
+const STORAGE_KEY = 'daily_planner_entries_v1';
+const SYNC_DEBOUNCE_MS = 700;
 
 export default function App() {
   const [entries, setEntries] = useState<DailyPlannerEntry[]>([]);
-  const [currentDate, setCurrentDate] = useState<string>(() => getTodayDateString());
+  const [currentDate, setCurrentDate] = useState<string>(getLocalDateString);
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'stats'>('today');
   const [isExporting, setIsExporting] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [confirmRequest, setConfirmRequest] = useState<ConfirmOptions | null>(null);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSyncRef = useRef<DailyPlannerEntry[] | null>(null);
 
-  // 1. Initialize State. Load from LocalStorage if present, else fallback to initialSampleData
+  // 1. Initialize State. Load from Express backend, fallback to LocalStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('daily_planner_entries_v1');
-      if (stored) {
-        setEntries(JSON.parse(stored));
-      } else {
-        setEntries(initialSampleData);
-        localStorage.setItem('daily_planner_entries_v1', JSON.stringify(initialSampleData));
+    async function loadData() {
+      try {
+        const response = await fetch('/api/entries');
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setEntries(data);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Backend API offline or unreachable. Falling back to LocalStorage.', err);
       }
-    } catch (e) {
-      console.error('Failed to load localStorage', e);
-      setEntries(initialSampleData);
+
+      // Fallback
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setEntries(JSON.parse(stored));
+        } else {
+          setEntries(initialSampleData);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSampleData));
+        }
+      } catch (e) {
+        console.error('Failed to load localStorage', e);
+        setEntries(initialSampleData);
+      }
     }
+    loadData();
   }, []);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
+    const flushPendingSync = () => {
+      if (!pendingSyncRef.current) return;
 
-  // 2. Save state helper
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+
+      const payload = JSON.stringify(pendingSyncRef.current);
+      const blob = new Blob([payload], { type: 'application/json' });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/entries', blob);
+      } else {
+        fetch('/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch((err) => {
+          console.warn('Unable to flush pending sync.', err);
+        });
+      }
+
+      pendingSyncRef.current = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingSync();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', flushPendingSync);
+
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', flushPendingSync);
+    };
+  }, []);
+
+  const queueServerSync = useCallback((updatedEntries: DailyPlannerEntry[]) => {
+    pendingSyncRef.current = updatedEntries;
+
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    syncTimeoutRef.current = setTimeout(() => {
+      fetch('/api/entries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedEntries),
+      }).catch((err) => {
+        console.warn('Unable to sync to the server database.', err);
+      }).finally(() => {
+        if (pendingSyncRef.current === updatedEntries) {
+          pendingSyncRef.current = null;
+        }
+      });
+    }, SYNC_DEBOUNCE_MS);
+  }, []);
+
+  // 2. Save state helper (Persists immediately to local state & localstorage, fires backend update in background)
   const saveAndSyncEntries = (updatedEntries: DailyPlannerEntry[]) => {
     setEntries(updatedEntries);
     try {
-      localStorage.setItem('daily_planner_entries_v1', JSON.stringify(updatedEntries));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEntries));
     } catch (e) {
       console.error('Failed to save state to localStorage', e);
     }
-  };
 
-  const showToast = (message: string, tone: ToastTone = 'success') => {
-    setToast({ id: Date.now(), message, tone });
-  };
-
-  const requestConfirm = (options: ConfirmOptions) => {
-    setConfirmRequest(options);
+    queueServerSync(updatedEntries);
   };
 
   // 3. Locate or build current day's entry records
@@ -110,10 +174,7 @@ export default function App() {
 
   // 5. Actions: Copy Yesterday's Tasks
   const handleCopyYesterdayTasks = () => {
-    const today = new Date(currentDate);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = shiftDateString(currentDate, -1);
 
     const yesterdayEntry = entries.find((e) => e.date === yesterdayStr);
     
@@ -127,9 +188,9 @@ export default function App() {
       }));
 
       updateCurrentEntry({ tasks: clonedTasks });
-      showToast(`已复制 ${yesterdayStr} 的待办，并重置完成状态。`);
+      alert(`已成功复制 ${yesterdayStr} 的清单事项！已重置待办勾选状态。`);
     } else {
-      showToast(`未找到昨天 ${yesterdayStr} 的记录，可以直接填写今日待办。`, 'warning');
+      alert(`未找到昨天 (${yesterdayStr}) 的记录。请先在历史日志中创建它，或直接输入待办事项。`);
     }
   };
 
@@ -154,7 +215,7 @@ export default function App() {
     });
 
     setActiveTab('today');
-    showToast(`已将 ${historicEntry.date} 复用为 ${currentDate} 的计划模板。`);
+    alert(`已将 ${historicEntry.date} 的待办事项和计划时间块复用为今天 ${currentDate} 的全新模板！`);
   };
 
   // 7. Action: Delete a entry record
@@ -164,9 +225,8 @@ export default function App() {
     
     // If the deleted date is the currently chosen date, fallback to standard date view
     if (currentDate === dateToDelete) {
-      setCurrentDate(getTodayDateString());
+      setCurrentDate(getLocalDateString());
     }
-    showToast(`已删除 ${dateToDelete} 的记录。`, 'warning');
   };
 
   // 8. Action: Fast Image Exporter
@@ -176,7 +236,7 @@ export default function App() {
     
     if (!targetNode) {
       setIsExporting(false);
-      showToast('未找到可导出的记录区域，请刷新后重试。', 'error');
+      alert('未找到需要导出的节点容器，请刷新后重试。');
       return;
     }
 
@@ -195,12 +255,11 @@ export default function App() {
       link.href = dataUrl;
       link.click();
       setIsExporting(false);
-      showToast(`已导出 ${currentDate} 的手帐长图。`);
     })
     .catch((err) => {
       console.error('Image rendering crashed', err);
       setIsExporting(false);
-      showToast('图片导出失败，可以稍后重试或使用浏览器打印保存。', 'error');
+      alert('图片导出失败，您可直接利用浏览器的 PDF 打印 (Ctrl+P) 获得完美的纸质级高精度留档！');
     });
   };
 
@@ -220,7 +279,7 @@ export default function App() {
                 <h1 className="font-serif text-base md:text-lg font-black text-[#5c4033] tracking-wide flex items-center gap-2">
                   每日计划与复盘
                   <span className="text-[10px] uppercase font-mono tracking-widest text-[#8B5A2B] bg-[#FAF1E3] border border-[#E8DCC4] py-0.5 px-2 rounded-full">
-                    本地优先
+                    Cognitive Tracker
                   </span>
                 </h1>
                 <p className="text-[11px] text-stone-500 font-serif leading-none mt-1">「预估安排」与「真实经过」的认知对照</p>
@@ -279,11 +338,10 @@ export default function App() {
               className="absolute top-3 right-4 hover:text-[#DE6B48] text-stone-400 font-sans font-bold text-sm"
               title="关闭指南"
             >
-              <X className="h-4 w-4" />
+              ✕
             </button>
             <h3 className="font-serif text-sm font-bold text-[#DE6B48] flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4" />
-              认知校准工具的核心价值
+              💡 认知校准工具的核心价值
             </h3>
             <p className="text-xs text-stone-600 font-serif leading-relaxed mt-2">
               大部分人的时间焦虑并非来源于忙碌，而是因为 <strong>“对自我时间的预估偏差”</strong>。每次低估写作任务耗时、多睡20分钟引起链条延误，都是校准的机会。
@@ -363,12 +421,12 @@ export default function App() {
               <div className="border-b-4 border-[#8B5A2B] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                 <div>
                   <h2 className="font-serif text-2xl lg:text-3xl font-black text-[#5c4033] tracking-wide">
-                    每日时间对照
+                    COGNITIVE TIMELINE
                   </h2>
                   <p className="text-xs text-stone-500 font-serif tracking-widest mt-1">时间轨迹与认知偏差比对表</p>
                 </div>
                 <div className="text-right">
-                  <span className="font-mono text-xs tracking-widest text-[#8B5A2B]">时间块记录</span>
+                  <span className="font-mono text-xs uppercase tracking-widest text-[#8B5A2B]">TIME BLOCK CHRONICLE</span>
                   <div className="font-serif text-lg font-black text-[#5c4033] mt-1">
                     {currentDate} {currentEntry.weekDay}
                   </div>
@@ -388,7 +446,6 @@ export default function App() {
                 actualBlocks={currentEntry.actualBlocks}
                 onUpdatePlanned={(p) => updateCurrentEntry({ plannedBlocks: p })}
                 onUpdateActual={(a) => updateCurrentEntry({ actualBlocks: a })}
-                onRequestConfirm={requestConfirm}
               />
 
               {/* Step 3: Summarize / Reviews */}
@@ -412,7 +469,6 @@ export default function App() {
             }}
             onDeployAsTemplate={handleDeployAsTemplate}
             onDeleteEntry={handleDeleteEntry}
-            onRequestConfirm={requestConfirm}
           />
         )}
 
@@ -427,84 +483,9 @@ export default function App() {
       <footer className="bg-[#FAF8F5] border-t border-[#EADFC9] py-8 text-center text-xs text-stone-500 font-serif">
         <div className="max-w-7xl mx-auto px-4 gap-2 flex flex-col items-center">
           <p>© 2026 每日计划与复盘表 - 结合认知校准与偏差归纳的高质感复盘工具</p>
-          <p className="text-[10px] font-mono text-[#8B5A2B]/60">记录计划与实际的差异，慢慢校准自己的时间感</p>
+          <p className="text-[10px] font-mono text-[#8B5A2B]/60">DESIGNED WITH THE INTENTION OF BALANCING TIME PREDICTION & PERFORMANCE</p>
         </div>
       </footer>
-
-      {toast && (
-        <div
-          key={toast.id}
-          className={`fixed right-4 top-20 z-[60] flex max-w-sm items-start gap-2 rounded-xl border px-4 py-3 text-sm shadow-lg animate-in fade-in slide-in-from-top-2 ${
-            toast.tone === 'error'
-              ? 'border-rose-200 bg-rose-50 text-rose-800'
-              : toast.tone === 'warning'
-              ? 'border-amber-200 bg-amber-50 text-amber-900'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-          }`}
-          role="status"
-        >
-          {toast.tone === 'success' ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-          )}
-          <span className="leading-relaxed">{toast.message}</span>
-          <button
-            type="button"
-            className="ml-1 rounded-sm p-0.5 opacity-70 hover:opacity-100"
-            onClick={() => setToast(null)}
-            aria-label="关闭提示"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {confirmRequest && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-stone-900/45 px-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border-2 border-[#EADFC9] bg-[#FAF8F5] p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
-              <div
-                className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
-                  confirmRequest.tone === 'danger'
-                    ? 'bg-rose-50 text-rose-700'
-                    : 'bg-amber-50 text-[#8B5A2B]'
-                }`}
-              >
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-serif text-base font-bold text-[#5c4033]">{confirmRequest.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-stone-600">{confirmRequest.message}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2 border-t border-[#EADFC9] pt-4">
-              <button
-                type="button"
-                onClick={() => setConfirmRequest(null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100"
-              >
-                {confirmRequest.cancelLabel || '取消'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  confirmRequest.onConfirm();
-                  setConfirmRequest(null);
-                }}
-                className={`rounded-lg px-4 py-2 text-sm font-bold text-white shadow-xs transition-colors ${
-                  confirmRequest.tone === 'danger'
-                    ? 'bg-rose-600 hover:bg-rose-700'
-                    : 'bg-[#8B5A2B] hover:bg-amber-800'
-                }`}
-              >
-                {confirmRequest.confirmLabel || '确认'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

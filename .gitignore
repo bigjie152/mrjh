@@ -7,6 +7,9 @@ build/
 .vite/
 .cache/
 
+# local data
+db.json
+
 # local env
 .env
 .env.*
@@ -31,4 +34,3 @@ test-results/
 Thumbs.db
 .idea/
 .vscode/
-

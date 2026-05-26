@@ -43,15 +43,6 @@ export interface DailyPlannerEntry {
   review: DailyReview;
 }
 
-export interface ConfirmOptions {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  tone?: 'default' | 'danger';
-  onConfirm: () => void;
-}
-
 export const CATEGORIES: { value: CategoryType; label: string; color: string; bg: string; borderColor: string }[] = [
   { value: 'work', label: '工作', color: 'text-blue-600', bg: 'bg-blue-50', borderColor: 'border-blue-200' },
   { value: 'learning', label: '学习', color: 'text-emerald-600', bg: 'bg-emerald-50', borderColor: 'border-emerald-200' },
