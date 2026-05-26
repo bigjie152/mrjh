@@ -121,6 +121,12 @@ npm run build
 DB
 ```
 
+当前 Cloudflare Account ID 已写入 `wrangler.jsonc`：
+
+```text
+755d505617dc5b552eb149ee9e213f10
+```
+
 本地数据库迁移文件：
 
 ```text
@@ -128,6 +134,15 @@ migrations/0001_initial.sql
 ```
 
 远程部署前，需要在 Cloudflare 创建 D1 数据库，然后把 `wrangler.jsonc` 中的 `database_id` 替换成真实 ID。
+
+如果使用 API Token 部署，建议 Token 至少包含：
+
+- `Account - Account Settings - Read`
+- `Account - D1 - Edit`
+- `Account - Workers Scripts - Edit`
+- `User - User Details - Read`
+
+Token 不要写进代码、README、`.env` 或聊天记录。需要临时使用时，只放在当前终端环境变量 `CLOUDFLARE_API_TOKEN` 中。
 
 创建远程数据库的命令示例：
 
@@ -156,6 +171,20 @@ npm run db:migrate:remote
 
 ```bash
 npm run deploy
+```
+
+如果 `wrangler login` 因本机证书链失败，可以改用 API Token：
+
+```bash
+export CLOUDFLARE_API_TOKEN="只在本机终端临时粘贴"
+npx wrangler whoami
+npm run deploy
+```
+
+执行完可以清掉当前终端变量：
+
+```bash
+unset CLOUDFLARE_API_TOKEN
 ```
 
 ## API

@@ -54,3 +54,10 @@ export async function fetchStats(): Promise<StatsSummary> {
 export async function fetchExportPayload(): Promise<unknown> {
   return requestJson("/api/export/json");
 }
+
+export async function importEntriesFromJson(payload: unknown): Promise<{ importedCount: number }> {
+  return requestJson("/api/import/json", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

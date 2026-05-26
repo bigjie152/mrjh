@@ -14,6 +14,7 @@ import {
   Save,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +24,7 @@ import {
   fetchEntrySummaries,
   fetchExportPayload,
   fetchStats,
+  importEntriesFromJson,
   saveEntry,
 } from "./api";
 import { CATEGORIES, CategoryType, DailyEntry, EntrySummary, StatsSummary, TimeBlock } from "../shared/types";
@@ -99,6 +101,7 @@ export default function App() {
   const [blockEditor, setBlockEditor] = useState<BlockEditorState | null>(null);
   const saveTimer = useRef<number | null>(null);
   const exportRef = useRef<HTMLDivElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = useCallback((text: string, tone: ToastTone = "success") => {
     setToast({ id: Date.now(), text, tone });
@@ -265,6 +268,34 @@ export default function App() {
     }
   };
 
+  const importFromJsonFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+
+      setConfirmState({
+        title: "导入 JSON 备份",
+        message: "导入会把备份中的日期写入数据库；同一天已有记录会被备份内容覆盖。建议确认这是你自己的备份文件。",
+        confirmLabel: "确认导入",
+        onConfirm: () => {
+          importEntriesFromJson(payload)
+            .then(async (result) => {
+              await refreshSummaries();
+              setEntry(await fetchEntry(currentDate));
+              showToast(`已导入 ${result.importedCount} 天记录。`);
+            })
+            .catch((error) => showToast(error.message, "error"));
+        },
+      });
+    } catch {
+      showToast("备份文件不是有效的 JSON，请重新选择。", "error");
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
+  };
+
   const exportAsPng = async () => {
     if (!exportRef.current) return;
     try {
@@ -331,6 +362,7 @@ export default function App() {
             onReviewChange={(review) => updateEntry({ review })}
             onExportPng={exportAsPng}
             onExportJson={exportAsJson}
+            onImportJson={() => importInputRef.current?.click()}
           />
         )}
 
@@ -369,6 +401,17 @@ export default function App() {
       )}
 
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+
+      <input
+        ref={importInputRef}
+        className="sr-only"
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void importFromJsonFile(file);
+        }}
+      />
     </div>
   );
 }
@@ -387,6 +430,7 @@ interface TodayViewProps {
   onReviewChange: (review: DailyEntry["review"]) => void;
   onExportPng: () => void;
   onExportJson: () => void;
+  onImportJson: () => void;
 }
 
 function TodayView(props: TodayViewProps) {
@@ -408,6 +452,9 @@ function TodayView(props: TodayViewProps) {
           </span>
           <button onClick={props.onExportJson} className="ghost-button">
             <FileDown size={16} /> 导出 JSON
+          </button>
+          <button onClick={props.onImportJson} className="ghost-button">
+            <Upload size={16} /> 导入 JSON
           </button>
           <button onClick={props.onExportPng} className="primary-button">
             <Download size={16} /> 导出长图
