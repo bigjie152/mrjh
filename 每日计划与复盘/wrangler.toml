@@ -1,0 +1,9 @@
+name = "mrjh"
+compatibility_date = "2026-05-26"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mrjh-daily-planner"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+migrations_dir = "migrations"

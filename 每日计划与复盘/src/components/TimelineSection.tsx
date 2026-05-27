@@ -230,14 +230,14 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" id="comparison-ledger">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8" id="comparison-ledger">
       {/* LEFT COLUMN: PLANNED (计划完成) */}
-      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm relative overflow-hidden" id="planned-ledger">
-        <div className="absolute inset-y-0 left-6 w-[1px] bg-red-200" /> {/* Binder ring line margin */}
+      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm relative overflow-hidden" id="planned-ledger">
+        <div className="absolute inset-y-0 left-3 sm:left-6 w-[1px] bg-red-200" /> {/* Binder ring line margin */}
         
-        <div className="flex items-center justify-between pl-6 mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pl-4 sm:pl-6 mb-5 sm:mb-6">
           <div>
-            <h3 className="font-serif text-lg font-bold text-[#8B5A2B] tracking-wide flex items-center gap-1.5">
+            <h3 className="font-serif text-base sm:text-lg font-bold text-[#8B5A2B] tracking-wide flex flex-wrap items-center gap-1.5">
               <span>计划完成</span>
               <span className="text-xs font-sans font-normal text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
                 {plannedBlocks.length} 个计划
@@ -248,7 +248,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           <button
             type="button"
             onClick={handleOpenNewPlanned}
-            className="flex items-center gap-1 bg-[#8B5A2B] text-white hover:bg-amber-800 transition-colors px-3 py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
+            className="flex items-center justify-center gap-1 bg-[#8B5A2B] text-white hover:bg-amber-800 transition-colors px-3 py-2 sm:py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             添加计划段
@@ -256,9 +256,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         </div>
 
         {/* Planned Blocks List */}
-        <div className="space-y-3.5 pl-6 min-h-[350px]">
+        <div className="space-y-3.5 pl-4 sm:pl-6 min-h-[260px] sm:min-h-[350px]">
           {plannedBlocks.length === 0 ? (
-            <div className="h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-[#EADFC9] rounded-xl p-6 text-center">
+            <div className="min-h-[220px] sm:h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-[#EADFC9] rounded-xl p-4 sm:p-6 text-center">
               <span className="text-3xl text-amber-500 mb-2 opacity-60">✍️</span>
               <p className="font-serif text-[#6B5A4E] text-sm">早晨神清气爽，点击上方按钮</p>
               <p className="text-xs text-stone-400 mt-1">写下预计的时间块，并关联清单的序号</p>
@@ -276,13 +276,13 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               return (
                 <div
                   key={plan.id}
-                  className="group relative flex items-start gap-3 bg-[radial-gradient(#faf6ee_1px,transparent_1px)] bg-[size:16px_16px] hover:bg-stone-50/50 p-3 rounded-xl border border-[#FAEDE1] shadow-2xs transition-all"
+                  className="group relative flex items-start gap-2 sm:gap-3 bg-[radial-gradient(#faf6ee_1px,transparent_1px)] bg-[size:16px_16px] hover:bg-stone-50/50 p-3 rounded-xl border border-[#FAEDE1] shadow-2xs transition-all"
                 >
                   {/* Category Border tag */}
                   <div className={`absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl ${catConfig.bg.replace('bg-', 'bg-')}`} style={{ backgroundColor: plan.category === 'work' ? '#3b82f6' : plan.category === 'learning' ? '#10b981' : plan.category === 'life' ? '#f59e0b' : plan.category === 'sport' ? '#f43f5e' : plan.category === 'leisure' ? '#6366f1' : '#64748b' }} />
 
                   <div className="flex-1 pl-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="font-mono text-xs font-semibold text-amber-900 bg-amber-100/60 px-1.5 py-0.5 rounded-sm border border-amber-200/50">
                         {plan.startTime} - {plan.endTime}
                       </span>
@@ -308,7 +308,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
                       onClick={() => handleCopyPlannedToActual(plan)}
@@ -342,12 +342,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       </div>
 
       {/* RIGHT COLUMN: ACTUAL (实际完成) */}
-      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm relative overflow-hidden" id="actual-ledger">
-        <div className="absolute inset-y-0 left-6 w-[1px] bg-red-200" />
+      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm relative overflow-hidden" id="actual-ledger">
+        <div className="absolute inset-y-0 left-3 sm:left-6 w-[1px] bg-red-200" />
 
-        <div className="flex items-center justify-between pl-6 mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pl-4 sm:pl-6 mb-5 sm:mb-6">
           <div>
-            <h3 className="font-serif text-lg font-bold text-emerald-900 tracking-wide flex items-center gap-1.5" style={{ color: '#065f46' }}>
+            <h3 className="font-serif text-base sm:text-lg font-bold text-emerald-900 tracking-wide flex flex-wrap items-center gap-1.5" style={{ color: '#065f46' }}>
               <span>实际完成</span>
               <span className="text-xs font-sans font-normal text-stone-500 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-100">
                 {actualBlocks.length} 条记录
@@ -355,12 +355,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             </h3>
             <p className="text-xs text-stone-500 font-sans mt-0.5">按真实情况补充耗时与偏差分析</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             {plannedBlocks.length > 0 && actualBlocks.length === 0 && (
               <button
                 type="button"
                 onClick={handleCopyAllPlanned}
-                className="flex items-center gap-1 border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors px-2.5 py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
+                className="flex items-center justify-center gap-1 border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors px-2.5 py-2 sm:py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
                 title="导入昨日或今日预设的所有计划，省去手动打字的琐碎"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -370,7 +370,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             <button
               type="button"
               onClick={handleOpenNewActual}
-              className="flex items-center gap-1 bg-emerald-700 text-white hover:bg-emerald-800 transition-colors px-3 py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
+              className="flex items-center justify-center gap-1 bg-emerald-700 text-white hover:bg-emerald-800 transition-colors px-3 py-2 sm:py-1.5 rounded-lg text-xs font-sans font-medium cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               加实际录
@@ -379,9 +379,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         </div>
 
         {/* Actual Blocks List */}
-        <div className="space-y-3.5 pl-6 min-h-[350px]">
+        <div className="space-y-3.5 pl-4 sm:pl-6 min-h-[260px] sm:min-h-[350px]">
           {actualBlocks.length === 0 ? (
-            <div className="h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-emerald-200 rounded-xl p-6 text-center">
+            <div className="min-h-[220px] sm:h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-emerald-200 rounded-xl p-4 sm:p-6 text-center">
               <span className="text-3xl text-emerald-600 mb-2 opacity-60">⏳</span>
               <p className="font-serif text-[#3f5e4e] text-sm">晚上暮色初见，点击上方添加</p>
               <p className="text-xs text-stone-400 mt-1">或用左侧快捷按钮由计划“一键瞬移”复制并微调</p>
@@ -460,7 +460,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => handleEditActual(act)}

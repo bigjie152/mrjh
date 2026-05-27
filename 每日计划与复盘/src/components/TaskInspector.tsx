@@ -54,19 +54,19 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
   };
 
   return (
-    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm relative overflow-hidden" id="task-inspector-panel">
+    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm relative overflow-hidden" id="task-inspector-panel">
       {/* Notebook line styling in background */}
       <div className="absolute inset-x-0 top-0 h-4 bg-[#8B5A2B]/10 border-b border-[#EADFC9]" />
       
-      <div className="flex items-center justify-between mt-2 mb-6">
-        <h2 className="font-serif text-xl font-bold text-[#5c4033] flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-2 mb-5 sm:mb-6">
+        <h2 className="font-serif text-lg sm:text-xl font-bold text-[#5c4033] flex flex-wrap items-center gap-2">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#D4AF37]" />
           待办事项清单 <span className="font-sans text-xs text-amber-800 bg-amber-100 py-0.5 px-2 rounded-full border border-amber-200">1-6 核心制</span>
         </h2>
-        <span className="text-xs font-mono text-stone-500">TODAY'S MISSIONS</span>
+        <span className="text-[10px] sm:text-xs font-mono text-stone-500">TODAY'S MISSIONS</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
         {tasks.map((task, idx) => {
           const symbol = INDEX_SYMBOLS[idx] || `${task.id}`;
           const isEditing = editingId === task.id;
@@ -88,7 +88,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
             >
               <div className="flex items-start gap-3">
                 {/* Custom Unicode Index Badge */}
-                <span className="text-2xl text-[#8B5A2B] font-serif select-none mt-0.5 min-w-[28px] text-center">
+                <span className="text-xl sm:text-2xl text-[#8B5A2B] font-serif select-none mt-0.5 min-w-[24px] sm:min-w-[28px] text-center">
                   {symbol}
                 </span>
 

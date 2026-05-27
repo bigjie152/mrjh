@@ -101,11 +101,11 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
     });
 
   return (
-    <div className="space-y-8" id="statistics-panel">
+    <div className="space-y-5 sm:space-y-8" id="statistics-panel">
       {/* Upper cards row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
         {/* Streak card */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-4 sm:p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 flex-shrink-0 border border-orange-200">
             <Flame className="w-6 h-6 fill-orange-500" />
           </div>
@@ -117,7 +117,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
         </div>
 
         {/* Global Completion */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-4 sm:p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0 border border-emerald-200">
             <CheckSquare className="w-6 h-6" />
           </div>
@@ -129,7 +129,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
         </div>
 
         {/* Total recorded time */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-4 sm:p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 border border-blue-200">
             <Clock className="w-6 h-6" />
           </div>
@@ -143,7 +143,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
         </div>
 
         {/* Mean Alignment Score */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-4 sm:p-5 shadow-sm flex items-center gap-4 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0 border border-amber-200">
             <Award className="w-6 h-6" />
           </div>
@@ -178,16 +178,16 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
       </div>
 
       {/* Main Charts area */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
         {/* Trend line SVG Chart */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm">
           <h4 className="font-serif text-base font-bold text-[#5c4033] flex items-center gap-2 mb-2">
             <Activity className="w-4 h-4 text-amber-600" />
             最近打卡对比趋势 (天)
           </h4>
           <p className="text-xs text-stone-400 font-sans mb-6">跟踪任务达成及时间预估的契合幅度变化</p>
 
-          <div className="w-full h-64 relative bg-stone-50/50 border border-stone-200/55 rounded-xl p-3">
+          <div className="w-full h-56 sm:h-64 relative bg-stone-50/50 border border-stone-200/55 rounded-xl p-2 sm:p-3 overflow-hidden">
             {trendData.length < 2 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
                 <p className="text-xs text-stone-400">需要至少两天的打卡数据，来画出完美的上升曲线</p>
@@ -311,14 +311,14 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
         </div>
 
         {/* Estimated vs Actual Bar Chart */}
-        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm">
+        <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm">
           <h4 className="font-serif text-base font-bold text-[#5c4033] flex items-center gap-2 mb-2">
             <BarChart3 className="w-4 h-4 text-emerald-600" />
             各维度总时间收支对比 (分钟)
           </h4>
           <p className="text-xs text-stone-400 font-sans mb-6">展示在工作、学习、运功和生活等分类下的投入偏差</p>
 
-          <div className="w-full h-64 relative bg-stone-50/50 border border-stone-200/55 rounded-xl p-3">
+          <div className="w-full h-56 sm:h-64 relative bg-stone-50/50 border border-stone-200/55 rounded-xl p-2 sm:p-3">
             {categoryTimes.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
                 <p className="text-xs text-stone-400">目前暂无时间块统计，请进入第一页规划并添加时间经过</p>

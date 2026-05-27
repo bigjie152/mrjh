@@ -52,17 +52,17 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
   const alignmentScore = totalPossible > 0 ? Math.round((totalOverlap / totalPossible) * 100) : 0;
 
   return (
-    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm relative overflow-hidden" id="daily-review-panel">
+    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm relative overflow-hidden" id="daily-review-panel">
       <div className="absolute inset-x-0 top-0 h-4 bg-[#8B5A2B]/10 border-b border-[#EADFC9]" />
 
-      <h3 className="font-serif text-lg font-bold text-[#5c4033] flex items-center gap-2 mt-2 mb-6">
+      <h3 className="font-serif text-base sm:text-lg font-bold text-[#5c4033] flex items-center gap-2 mt-2 mb-5 sm:mb-6">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600" />
         总结与认知校准
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
         {/* Metric Card 1: Planned vs Actual time */}
-        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-4 flex flex-col justify-between">
+        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3 sm:p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-serif font-bold text-[#8B5A2B]">时间收支</span>
             <TrendingUp className="w-4 h-4 text-stone-400" />
@@ -85,7 +85,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
         </div>
 
         {/* Metric Card 2: Alignment Score */}
-        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-4 flex flex-col justify-between">
+        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3 sm:p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-serif font-bold text-[#8B5A2B]">预估匹配率 (校准度)</span>
             <Award className="w-4 h-4 text-[#D4AF37]" />
@@ -102,7 +102,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
         </div>
 
         {/* Metric Card 3: Categorized Contrast Details */}
-        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3 flex flex-col justify-between max-h-[140px] overflow-y-auto">
+        <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3 flex flex-col justify-between max-h-[180px] md:max-h-[140px] overflow-y-auto">
           <span className="text-xs font-serif font-bold text-[#8B5A2B] mb-1.5 block">分类时间偏离对照 (分)</span>
           <div className="space-y-1">
             {breakdownData.map((d) => {
@@ -129,7 +129,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
       </div>
 
       {/* REVIEWS INPUT FORMS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <div className="space-y-4">
           {/* Biggest Deviation */}
           <div className="flex flex-col">

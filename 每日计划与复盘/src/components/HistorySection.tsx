@@ -67,12 +67,12 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
   };
 
   return (
-    <div className="space-y-6" id="history-panel">
+    <div className="space-y-4 sm:space-y-6" id="history-panel">
       {/* Search Header */}
-      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-6 shadow-sm">
+      <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="font-serif text-lg font-bold text-[#5c4033] flex items-center gap-2">
+            <h3 className="font-serif text-base sm:text-lg font-bold text-[#5c4033] flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-600" />
               历史归档时间轴
             </h3>
@@ -95,13 +95,13 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
 
       {/* History Grid */}
       {filteredEntries.length === 0 ? (
-        <div className="bg-[#FAF8F5] border-2 border-dashed border-[#EADFC9] rounded-2xl p-12 text-center">
+        <div className="bg-[#FAF8F5] border-2 border-dashed border-[#EADFC9] rounded-2xl p-8 sm:p-12 text-center">
           <Calendar className="w-12 h-12 text-stone-300 mx-auto mb-3" />
           <p className="font-serif text-[#6B5A4E]">未找到任何历史记录页</p>
           <p className="text-xs text-stone-400 mt-1">换个搜索词，或者立刻记录今日计划吧！</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {filteredEntries.map((entry) => {
             const m = getMetrics(entry);
             const isToday = entry.date === getLocalDateString();
@@ -109,14 +109,14 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
             return (
               <div
                 key={entry.date}
-                className={`group relative overflow-hidden bg-[#FAF8F5] border-2 rounded-2xl p-6 transition-all duration-250 hover:shadow-md hover:border-[#8B5A2B] ${
+                className={`group relative overflow-hidden bg-[#FAF8F5] border-2 rounded-2xl p-4 sm:p-6 transition-all duration-250 hover:shadow-md hover:border-[#8B5A2B] ${
                   isToday ? 'border-[#8B5A2B]/70 ring-4 ring-amber-50' : 'border-[#EADFC9]'
                 }`}
               >
                 {/* Vintage stamp effect for date */}
-                <div className="absolute top-4 right-4 bg-[#FAF5EB] border border-[#DE6B48] px-2.5 py-1 text-center rounded-sm rotate-3 shadow-xs">
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-[#FAF5EB] border border-[#DE6B48] px-2 sm:px-2.5 py-1 text-center rounded-sm rotate-3 shadow-xs">
                   <span className="block font-mono text-[10px] text-stone-400 leading-none">DATE STAMP</span>
-                  <span className="font-serif font-black text-sm text-[#DE6B48] leading-none block mt-1">{entry.date}</span>
+                  <span className="font-serif font-black text-xs sm:text-sm text-[#DE6B48] leading-none block mt-1">{entry.date}</span>
                 </div>
 
                 <div className="mb-4">
@@ -126,7 +126,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                 </div>
 
                 {/* Grid stats */}
-                <div className="grid grid-cols-3 gap-2 bg-stone-50 border border-stone-200/60 rounded-xl p-3 mb-4 text-center">
+                <div className="grid grid-cols-3 gap-2 bg-stone-50 border border-stone-200/60 rounded-xl p-2 sm:p-3 mb-4 text-center">
                   <div>
                     <span className="block text-[10px] text-stone-500 uppercase tracking-wider">待办完成</span>
                     <span className="font-serif text-sm font-bold text-stone-800">
@@ -186,12 +186,12 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                 )}
 
                 {/* Hover actions menu */}
-                <div className="flex items-center justify-between border-t border-stone-200/50 pt-3">
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between gap-2 border-t border-stone-200/50 pt-3">
+                  <div className="grid flex-1 grid-cols-1 gap-2 sm:flex sm:flex-none">
                     <button
                       type="button"
                       onClick={() => onSelectDate(entry.date)}
-                      className="cursor-pointer text-xs font-serif font-bold text-[#8B5A2B] hover:text-amber-800 flex items-center gap-1 bg-amber-50 hover:bg-amber-100 py-1.5 px-3 rounded-lg border border-amber-200/50"
+                      className="cursor-pointer text-xs font-serif font-bold text-[#8B5A2B] hover:text-amber-800 flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 py-2 sm:py-1.5 px-3 rounded-lg border border-amber-200/50"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       去修改此日
@@ -200,7 +200,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                       <button
                         type="button"
                         onClick={() => onDeployAsTemplate(entry)}
-                        className="cursor-pointer text-xs font-sans text-[#4E765D] hover:bg-green-100 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                        className="cursor-pointer text-xs font-sans text-[#4E765D] hover:bg-green-100 bg-emerald-50 border border-emerald-200 px-3 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5"
                         title="将这一天的任务和计划复制到今天，用于高重复性的一天计划"
                       >
                         <Copy className="w-3.5 h-3.5" />

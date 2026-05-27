@@ -12,6 +12,26 @@ import * as htmlToImage from 'html-to-image';
 const STORAGE_KEY = 'daily_planner_entries_v1';
 const SYNC_DEBOUNCE_MS = 700;
 
+function readStoredEntries(): DailyPlannerEntry[] | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (error) {
+    console.error('Failed to read local entries.', error);
+    return null;
+  }
+}
+
+function writeStoredEntries(entries: DailyPlannerEntry[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (error) {
+    console.error('Failed to save entries to localStorage.', error);
+  }
+}
+
 export default function App() {
   const [entries, setEntries] = useState<DailyPlannerEntry[]>([]);
   const [currentDate, setCurrentDate] = useState<string>(getLocalDateString);
@@ -21,35 +41,47 @@ export default function App() {
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncRef = useRef<DailyPlannerEntry[] | null>(null);
 
-  // 1. Initialize State. Load from Express backend, fallback to LocalStorage
+  // 1. Initialize State. Load from Cloudflare D1 backend, fallback to LocalStorage.
   useEffect(() => {
     async function loadData() {
+      const storedEntries = readStoredEntries();
+
       try {
         const response = await fetch('/api/entries');
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data)) {
-            setEntries(data);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            if (data.length > 0) {
+              setEntries(data);
+              writeStoredEntries(data);
+              return;
+            }
+
+            if (storedEntries && storedEntries.length > 0) {
+              setEntries(storedEntries);
+              fetch('/api/entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(storedEntries),
+              }).catch((err) => {
+                console.warn('Unable to seed empty D1 database from local cache.', err);
+              });
+              return;
+            }
+
+            setEntries([]);
             return;
           }
         }
       } catch (err) {
-        console.warn('Backend API offline or unreachable. Falling back to LocalStorage.', err);
+        console.warn('Backend API offline or unreachable. Falling back to local cache.', err);
       }
 
-      // Fallback
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setEntries(JSON.parse(stored));
-        } else {
-          setEntries(initialSampleData);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSampleData));
-        }
-      } catch (e) {
-        console.error('Failed to load localStorage', e);
+      if (storedEntries && storedEntries.length > 0) {
+        setEntries(storedEntries);
+      } else {
         setEntries(initialSampleData);
+        writeStoredEntries(initialSampleData);
       }
     }
     loadData();
@@ -127,12 +159,7 @@ export default function App() {
   // 2. Save state helper (Persists immediately to local state & localstorage, fires backend update in background)
   const saveAndSyncEntries = (updatedEntries: DailyPlannerEntry[]) => {
     setEntries(updatedEntries);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEntries));
-    } catch (e) {
-      console.error('Failed to save state to localStorage', e);
-    }
-
+    writeStoredEntries(updatedEntries);
     queueServerSync(updatedEntries);
   };
 
@@ -264,65 +291,68 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F1EA] text-[#4A3B32] font-sans antialiased flex flex-col justify-between selection:bg-[#E2D5BA] selection:text-[#5c4033]" id="master-root">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F4F1EA] text-[#4A3B32] font-sans antialiased flex flex-col justify-between selection:bg-[#E2D5BA] selection:text-[#5c4033]" id="master-root">
       {/* GLOBAL BANNER */}
       <header className="bg-[#FAF8F5] border-b border-[#EADFC9] sticky top-0 z-40 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:py-0">
             
             {/* Title / Brand */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#8B5A2B] text-amber-50 flex items-center justify-center font-serif text-xl font-bold shadow-sm border border-[#704822]">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#8B5A2B] text-amber-50 flex items-center justify-center font-serif text-lg sm:text-xl font-bold shadow-sm border border-[#704822] flex-shrink-0">
                 墨
               </div>
-              <div>
-                <h1 className="font-serif text-base md:text-lg font-black text-[#5c4033] tracking-wide flex items-center gap-2">
+              <div className="min-w-0">
+                <h1 className="font-serif text-base md:text-lg font-black text-[#5c4033] tracking-wide flex items-center gap-2 whitespace-nowrap">
                   每日计划与复盘
-                  <span className="text-[10px] uppercase font-mono tracking-widest text-[#8B5A2B] bg-[#FAF1E3] border border-[#E8DCC4] py-0.5 px-2 rounded-full">
+                  <span className="hidden sm:inline-flex text-[10px] uppercase font-mono tracking-widest text-[#8B5A2B] bg-[#FAF1E3] border border-[#E8DCC4] py-0.5 px-2 rounded-full">
                     Cognitive Tracker
                   </span>
                 </h1>
-                <p className="text-[11px] text-stone-500 font-serif leading-none mt-1">「预估安排」与「真实经过」的认知对照</p>
+                <p className="text-[11px] text-stone-500 font-serif leading-snug mt-1 truncate">「预估安排」与「真实经过」的认知对照</p>
               </div>
             </div>
 
             {/* Main Tabs controller */}
-            <div className="flex items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200">
+            <div className="mx-auto grid w-full max-w-[360px] min-w-0 grid-cols-3 items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200 md:mx-0 md:flex md:w-auto md:max-w-none">
               <button
                 type="button"
                 onClick={() => setActiveTab('today')}
-                className={`cursor-pointer flex items-center gap-1 px-4 py-1.5 rounded-lg text-xs font-serif font-bold transition-all ${
+                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
                   activeTab === 'today'
                     ? 'bg-[#8B5A2B] text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
-                今日对照
+                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="min-w-0 truncate sm:hidden">今日</span>
+                <span className="hidden min-w-0 truncate sm:inline">今日对照</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('history')}
-                className={`cursor-pointer flex items-center gap-1 px-4 py-1.5 rounded-lg text-xs font-serif font-bold transition-all ${
+                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
                   activeTab === 'history'
                     ? 'bg-[#8B5A2B] text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <Archive className="w-3.5 h-3.5" />
-                历史归档
+                <Archive className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="min-w-0 truncate sm:hidden">历史</span>
+                <span className="hidden min-w-0 truncate sm:inline">历史归档</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('stats')}
-                className={`cursor-pointer flex items-center gap-1 px-4 py-1.5 rounded-lg text-xs font-serif font-bold transition-all ${
+                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
                   activeTab === 'stats'
                     ? 'bg-[#8B5A2B] text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <BarChart2 className="w-3.5 h-3.5" />
-                偏差统计
+                <BarChart2 className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="min-w-0 truncate sm:hidden">统计</span>
+                <span className="hidden min-w-0 truncate sm:inline">偏差统计</span>
               </button>
             </div>
           </div>
@@ -331,8 +361,8 @@ export default function App() {
 
       {/* DETAILED USER INTENT INTRO CARD */}
       {showHelp && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-[#FAF8F5] border-l-4 border-[#DE6B48] rounded-r-xl p-5 shadow-xs relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+          <div className="bg-[#FAF8F5] border-l-4 border-[#DE6B48] rounded-r-xl p-4 sm:p-5 shadow-xs relative overflow-hidden">
             <button
               onClick={() => setShowHelp(false)}
               className="absolute top-3 right-4 hover:text-[#DE6B48] text-stone-400 font-sans font-bold text-sm"
@@ -343,7 +373,7 @@ export default function App() {
             <h3 className="font-serif text-sm font-bold text-[#DE6B48] flex items-center gap-1.5">
               💡 认知校准工具的核心价值
             </h3>
-            <p className="text-xs text-stone-600 font-serif leading-relaxed mt-2">
+            <p className="text-xs text-stone-600 font-serif leading-relaxed mt-2 break-words">
               大部分人的时间焦虑并非来源于忙碌，而是因为 <strong>“对自我时间的预估偏差”</strong>。每次低估写作任务耗时、多睡20分钟引起链条延误，都是校准的机会。
               本应用完全还原手帐级左右对照原理，点击下方或右侧 <strong>[编号 ①-⑥]</strong> 绑定清单，在暮色时填写真实经历，并在底部填写最大偏差的诱因，逐渐校准掌控度。
             </p>
@@ -352,16 +382,16 @@ export default function App() {
       )}
 
       {/* CORE APPLICATION CONTAINER */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* VIEW 1: TODAY (今日对照明细) */}
         {activeTab === 'today' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="space-y-5 sm:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-200">
             
             {/* Today Controller Toolbar */}
-            <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center flex-wrap gap-4">
-                <div className="flex items-center gap-1.5 bg-[#FAF1E3] border border-[#E8DCC4] py-1 px-3 rounded-xl">
+            <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:flex sm:items-center sm:flex-wrap gap-3 sm:gap-4">
+                <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-[#FAF1E3] border border-[#E8DCC4] py-2 sm:py-1 px-3 rounded-xl">
                   <Calendar className="w-4 h-4 text-[#8B5A2B]" />
                   <input
                     type="date"
@@ -382,7 +412,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleCopyYesterdayTasks}
-                  className="cursor-pointer flex items-center gap-1 border border-stone-200 text-stone-700 bg-white hover:bg-stone-50 transition-colors px-3 py-1.5 rounded-xl text-xs font-sans font-medium"
+                  className="cursor-pointer flex items-center justify-center gap-1 border border-stone-200 text-stone-700 bg-white hover:bg-stone-50 transition-colors px-3 py-2 sm:py-1.5 rounded-xl text-xs font-sans font-medium"
                   title="自动获取前一天的全部清单待办内容"
                 >
                   <Copy className="w-3.5 h-3.5 text-stone-500" />
@@ -395,7 +425,7 @@ export default function App() {
                   type="button"
                   onClick={handleExportAsImage}
                   disabled={isExporting}
-                  className={`cursor-pointer flex items-center gap-1 bg-[#8B5A2B] text-white hover:bg-amber-800 transition-colors px-4 py-2 rounded-xl text-xs font-sans font-bold shadow-xs ${
+                  className={`cursor-pointer flex w-full md:w-auto items-center justify-center gap-1 bg-[#8B5A2B] text-white hover:bg-amber-800 transition-colors px-4 py-2 rounded-xl text-xs font-sans font-bold shadow-xs ${
                     isExporting ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
@@ -408,7 +438,7 @@ export default function App() {
             {/* PHYSICAL PAPER BUNDLE FOR EXPORT */}
             <div 
               id="print-paper-boundary" 
-              className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-3xl p-6 sm:p-8 shadow-md relative overflow-hidden space-y-8"
+              className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl sm:rounded-3xl p-3 sm:p-6 lg:p-8 shadow-md relative overflow-hidden space-y-5 sm:space-y-8"
               style={{
                 backgroundImage: 'radial-gradient(#F0E6D2 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
@@ -418,14 +448,14 @@ export default function App() {
               <div className="absolute top-0 bottom-0 left-1/2 -ml-0.5 w-[1px] bg-red-100 hidden lg:block pointer-events-none" />
               
               {/* Vintage notebook header stamp */}
-              <div className="border-b-4 border-[#8B5A2B] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="border-b-4 border-[#8B5A2B] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
                 <div>
-                  <h2 className="font-serif text-2xl lg:text-3xl font-black text-[#5c4033] tracking-wide">
+                  <h2 className="font-serif text-xl sm:text-2xl lg:text-3xl font-black text-[#5c4033] tracking-wide">
                     COGNITIVE TIMELINE
                   </h2>
                   <p className="text-xs text-stone-500 font-serif tracking-widest mt-1">时间轨迹与认知偏差比对表</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="font-mono text-xs uppercase tracking-widest text-[#8B5A2B]">TIME BLOCK CHRONICLE</span>
                   <div className="font-serif text-lg font-black text-[#5c4033] mt-1">
                     {currentDate} {currentEntry.weekDay}
