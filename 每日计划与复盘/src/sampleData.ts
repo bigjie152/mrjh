@@ -53,12 +53,12 @@ export const initialSampleData: DailyPlannerEntry[] = [
     date: '2026-05-25',
     weekDay: '星期一',
     tasks: [
-      { id: 1, text: '撰写《情商力》草稿文章', completed: true, notes: '完成了3000字核心章节。' },
-      { id: 2, text: '阅读《今日简史》第二章', completed: true, notes: '精读了15页并高亮重要句段。' },
-      { id: 3, text: '每日反思与日记复盘', completed: true, notes: '结合早晨梦境完成了认知校准。' },
-      { id: 4, text: '取顺丰速运快递与下午茶', completed: true, notes: '顺畅，也顺便散步。' },
-      { id: 5, text: '备忘录标题配图与插画制作', completed: true, notes: '完成了2张设计并导出。' },
-      { id: 6, text: '网购周五回家高铁票', completed: true, notes: '抢票成功。' },
+      { id: 1, text: '撰写《情商力》草稿文章', completed: true, category: 'learning', notes: '完成了3000字核心章节。' },
+      { id: 2, text: '阅读《今日简史》第二章', completed: true, category: 'learning', notes: '精读了15页并高亮重要句段。' },
+      { id: 3, text: '每日反思与日记复盘', completed: true, category: 'learning', notes: '结合早晨梦境完成了认知校准。' },
+      { id: 4, text: '取顺丰速运快递与下午茶', completed: true, category: 'life', notes: '顺畅，也顺便散步。' },
+      { id: 5, text: '备忘录标题配图与插画制作', completed: true, category: 'work', notes: '完成了2张设计并导出。' },
+      { id: 6, text: '网购周五回家高铁票', completed: true, category: 'life', notes: '抢票成功。' },
     ],
     plannedBlocks: [
       {
@@ -241,12 +241,12 @@ export const initialSampleData: DailyPlannerEntry[] = [
     date: '2026-05-24',
     weekDay: '星期日',
     tasks: [
-      { id: 1, text: '整理下周工作重点大纲', completed: true, notes: '梳理了3个新项目' },
-      { id: 2, text: '户外骑行 20 公里', completed: true, notes: '完成了，消耗550大卡' },
-      { id: 3, text: '购买生鲜与家庭大扫除', completed: true },
-      { id: 4, text: '未作额外硬性任务', completed: false },
-      { id: 5, text: '', completed: false },
-      { id: 6, text: '', completed: false },
+      { id: 1, text: '整理下周工作重点大纲', completed: true, category: 'work', notes: '梳理了3个新项目' },
+      { id: 2, text: '户外骑行 20 公里', completed: true, category: 'sport', notes: '完成了，消耗550大卡' },
+      { id: 3, text: '购买生鲜与家庭大扫除', completed: true, category: 'life' },
+      { id: 4, text: '未作额外硬性任务', completed: false, category: 'leisure' },
+      { id: 5, text: '', completed: false, category: 'other' },
+      { id: 6, text: '', completed: false, category: 'other' },
     ],
     plannedBlocks: [
       { id: 'p24-1', startTime: '09:00', endTime: '11:00', taskRef: 2, content: '绿道自行车骑行', category: 'sport', estimatedMinutes: 120 },
@@ -268,12 +268,12 @@ export const initialSampleData: DailyPlannerEntry[] = [
     date: '2026-05-26', // 示例记录
     weekDay: '星期二',
     tasks: [
-      { id: 1, text: '完成每日时间管理产品的前端页面开发', completed: false, notes: '需要包含高拟真手帐感UI' },
-      { id: 2, text: '核心偏差算法与时间百分比统计', completed: false },
-      { id: 3, text: '模拟生成当天的仿真数据做可视化', completed: true, notes: '已撰写了sampleData.ts' },
-      { id: 4, text: '去公园散步放松15分钟', completed: false },
-      { id: 5, text: '阅读技术文章2篇', completed: false },
-      { id: 6, text: '记录今天的梦境和认知波动点', completed: false },
+      { id: 1, text: '完成每日时间管理产品的前端页面开发', completed: false, category: 'work', notes: '需要包含高拟真手帐感UI' },
+      { id: 2, text: '核心偏差算法与时间百分比统计', completed: false, category: 'work' },
+      { id: 3, text: '模拟生成当天的仿真数据做可视化', completed: true, category: 'work', notes: '已撰写了sampleData.ts' },
+      { id: 4, text: '去公园散步放松15分钟', completed: false, category: 'life' },
+      { id: 5, text: '阅读技术文章2篇', completed: false, category: 'learning' },
+      { id: 6, text: '记录今天的梦境和认知波动点', completed: false, category: 'learning' },
     ],
     plannedBlocks: [
       { id: 'p26-1', startTime: '06:00', endTime: '07:00', taskRef: null, content: '晨瑜伽与水合呼吸', category: 'sport', estimatedMinutes: 60 },

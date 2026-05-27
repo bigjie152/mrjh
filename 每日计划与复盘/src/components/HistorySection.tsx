@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DailyPlannerEntry, CATEGORIES } from '../types';
 import { Search, Calendar, Copy, Edit, Trash2 } from 'lucide-react';
 import { formatMinutes, getLocalDateString } from '../sampleData';
+import { getBlockCategory, getIndexSymbol } from '../plannerUtils';
 
 interface HistorySectionProps {
   entries: DailyPlannerEntry[];
@@ -49,8 +50,8 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
     let overlap = 0;
     let possible = 0;
     CATEGORIES.forEach((cat) => {
-      const p = entry.plannedBlocks.filter((b) => b.category === cat.value).reduce((s, c) => s + c.estimatedMinutes, 0);
-      const a = entry.actualBlocks.filter((b) => b.category === cat.value).reduce((s, c) => s + c.actualMinutes, 0);
+      const p = entry.plannedBlocks.filter((b) => getBlockCategory(entry.tasks, b) === cat.value).reduce((s, c) => s + c.estimatedMinutes, 0);
+      const a = entry.actualBlocks.filter((b) => getBlockCategory(entry.tasks, b) === cat.value).reduce((s, c) => s + c.actualMinutes, 0);
       overlap += Math.min(p, a);
       possible += Math.max(p, a);
     });
@@ -161,7 +162,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                   {entry.tasks.filter(t => t.text.trim().length > 0).slice(0, 3).map((task, i) => (
                     <div key={task.id} className="flex items-center gap-1.5 text-xs">
                       <span className="text-stone-400 font-serif">
-                        {INDEX_SYMBOLS[i] || task.id}
+                        {getIndexSymbol(i)}
                       </span>
                       <span className={`truncate flex-1 font-serif text-[#4A3B32] ${task.completed ? 'line-through text-stone-400' : ''}`}>
                         {task.text}
@@ -229,4 +230,3 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
     </div>
   );
 };
-export const INDEX_SYMBOLS = ['①', '②', '③', '④', '⑤', '⑥'];

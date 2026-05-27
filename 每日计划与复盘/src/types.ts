@@ -1,17 +1,18 @@
 export type CategoryType = 'learning' | 'work' | 'life' | 'leisure' | 'sport' | 'other';
 
 export interface TaskItem {
-  id: number; // 1 to 6
+  id: number;
   text: string;
   completed: boolean;
   notes?: string;
+  category?: CategoryType;
 }
 
 export interface PlannedBlock {
   id: string;
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
-  taskRef: number | null; // 1 to 6 reference
+  taskRef: number | null;
   content: string;
   category: CategoryType;
   estimatedMinutes: number;
@@ -21,7 +22,7 @@ export interface ActualBlock {
   id: string;
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
-  taskRef: number | null; // 1 to 6 reference
+  taskRef: number | null;
   content: string;
   category: CategoryType;
   actualMinutes: number;
