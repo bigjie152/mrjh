@@ -2,9 +2,12 @@ import React from 'react';
 import { DailyReview, PlannedBlock, ActualBlock, CATEGORIES } from '../types';
 import { Award, TrendingUp } from 'lucide-react';
 import { formatMinutes } from '../sampleData';
+import { getBlockCategory } from '../plannerUtils';
+import { TaskItem } from '../types';
 
 interface ReviewSectionProps {
   review: DailyReview;
+  tasks: TaskItem[];
   plannedBlocks: PlannedBlock[];
   actualBlocks: ActualBlock[];
   onChange: (updatedReview: DailyReview) => void;
@@ -12,6 +15,7 @@ interface ReviewSectionProps {
 
 export const ReviewSection: React.FC<ReviewSectionProps> = ({
   review,
+  tasks,
   plannedBlocks,
   actualBlocks,
   onChange,
@@ -27,10 +31,10 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
   // Category breakdown comparison
   const breakdownData = CATEGORIES.map((cat) => {
     const planned = plannedBlocks
-      .filter((b) => b.category === cat.value)
+      .filter((b) => getBlockCategory(tasks, b) === cat.value)
       .reduce((acc, curr) => acc + curr.estimatedMinutes, 0);
     const actual = actualBlocks
-      .filter((b) => b.category === cat.value)
+      .filter((b) => getBlockCategory(tasks, b) === cat.value)
       .reduce((acc, curr) => acc + curr.actualMinutes, 0);
     return {
       ...cat,

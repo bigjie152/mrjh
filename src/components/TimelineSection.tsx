@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PlannedBlock, ActualBlock, CategoryType, CATEGORIES, TaskItem } from '../types';
 import { Plus, Copy, Trash2, Edit2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { calculateTimeDiffMinutes, formatMinutes } from '../sampleData';
+import { getBlockCategory, getIndexSymbol, getLinkedTask, getTaskCategory } from '../plannerUtils';
 
 interface TimelineSectionProps {
   tasks: TaskItem[];
@@ -11,7 +12,14 @@ interface TimelineSectionProps {
   onUpdateActual: (blocks: ActualBlock[]) => void;
 }
 
-const INDEX_SYMBOLS = ['①', '②', '③', '④', '⑤', '⑥'];
+function getCategoryAccent(category: CategoryType) {
+  if (category === 'work') return '#3b82f6';
+  if (category === 'learning') return '#10b981';
+  if (category === 'life') return '#f59e0b';
+  if (category === 'sport') return '#f43f5e';
+  if (category === 'leisure') return '#6366f1';
+  return '#64748b';
+}
 
 export const TimelineSection: React.FC<TimelineSectionProps> = ({
   tasks,
@@ -36,6 +44,35 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const [category, setCategory] = useState<CategoryType>('work');
   const [reason, setReason] = useState('');
 
+  const filledTasks = tasks.filter((task) => task.text.trim().length > 0);
+
+  const getTaskSymbol = (ref: number | null) => {
+    if (!ref) return '';
+    const index = tasks.findIndex((task) => task.id === ref);
+    return index >= 0 ? getIndexSymbol(index) : `${ref}`;
+  };
+
+  const getTaskText = (ref: number | null) => {
+    const found = getLinkedTask(tasks, ref);
+    if (!ref) return '';
+    return found && found.text.trim() ? found.text : `已删除事项 ${ref}`;
+  };
+
+  const getCategoryConfig = (value: CategoryType) => (
+    CATEGORIES.find((item) => item.value === value) ?? CATEGORIES[5]
+  );
+
+  const handleTaskRefChange = (value: string) => {
+    const nextRef = value ? Number(value) : null;
+    setTaskRef(nextRef);
+    const linkedTask = getLinkedTask(tasks, nextRef);
+    if (linkedTask) {
+      setCategory(getTaskCategory(linkedTask));
+    } else if (!nextRef) {
+      setCategory('other');
+    }
+  };
+
   // Auto calculation suggestion helper
   const handleOpenNewPlanned = () => {
     // Propose an logical next slot
@@ -54,7 +91,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     }
     setContent('');
     setTaskRef(null);
-    setCategory('work');
+    setCategory('other');
     setEditingPlannedId(null);
     setShowPlannedForm(true);
   };
@@ -75,7 +112,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     }
     setContent('');
     setTaskRef(null);
-    setCategory('work');
+    setCategory('other');
     setReason('');
     setEditingActualId(null);
     setShowActualForm(true);
@@ -84,14 +121,21 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const handleSavePlanned = (e: React.FormEvent) => {
     e.preventDefault();
     const duration = calculateTimeDiffMinutes(startTime, endTime);
+    const linkedTask = getLinkedTask(tasks, taskRef);
+    const trimmedContent = content.trim();
+
+    if (!linkedTask && !trimmedContent) {
+      alert('请先关联一个待办事项，或填写这段计划要做什么。');
+      return;
+    }
     
     const newBlock: PlannedBlock = {
       id: editingPlannedId || `p-${Date.now()}`,
       startTime,
       endTime,
       taskRef: taskRef ? Number(taskRef) : null,
-      content: content.trim() || '未命名计划',
-      category,
+      content: trimmedContent,
+      category: linkedTask ? getTaskCategory(linkedTask) : category,
       estimatedMinutes: duration,
     };
 
@@ -112,14 +156,21 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const handleSaveActual = (e: React.FormEvent) => {
     e.preventDefault();
     const duration = calculateTimeDiffMinutes(startTime, endTime);
+    const linkedTask = getLinkedTask(tasks, taskRef);
+    const trimmedContent = content.trim();
+
+    if (!linkedTask && !trimmedContent) {
+      alert('请先关联一个待办事项，或填写这段真实经过。');
+      return;
+    }
 
     const newBlock: ActualBlock = {
       id: editingActualId || `a-${Date.now()}`,
       startTime,
       endTime,
       taskRef: taskRef ? Number(taskRef) : null,
-      content: content.trim() || '未命名实际记录',
-      category,
+      content: trimmedContent,
+      category: linkedTask ? getTaskCategory(linkedTask) : category,
       actualMinutes: duration,
       reason: reason.trim() || undefined,
     };
@@ -145,7 +196,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       endTime: pBlock.endTime,
       taskRef: pBlock.taskRef,
       content: pBlock.content,
-      category: pBlock.category,
+      category: getBlockCategory(tasks, pBlock),
       actualMinutes: pBlock.estimatedMinutes,
     };
 
@@ -162,7 +213,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         endTime: p.endTime,
         taskRef: p.taskRef,
         content: p.content,
-        category: p.category,
+        category: getBlockCategory(tasks, p),
         actualMinutes: p.estimatedMinutes,
       }));
 
@@ -177,7 +228,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     setEndTime(block.endTime);
     setContent(block.content);
     setTaskRef(block.taskRef);
-    setCategory(block.category);
+    setCategory(getBlockCategory(tasks, block));
     setShowPlannedForm(true);
   };
 
@@ -187,7 +238,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     setEndTime(block.endTime);
     setContent(block.content);
     setTaskRef(block.taskRef);
-    setCategory(block.category);
+    setCategory(getBlockCategory(tasks, block));
     setReason(block.reason || '');
     setShowActualForm(true);
   };
@@ -198,13 +249,6 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
   const handleDeleteActual = (id: string) => {
     onUpdateActual(actualBlocks.filter((b) => b.id !== id));
-  };
-
-  // Helper to find a task content from ref
-  const getTaskText = (ref: number | null) => {
-    if (!ref) return '';
-    const found = tasks.find((t) => t.id === ref);
-    return found && found.text.trim() ? found.text : `核心事件 ${ref}`;
   };
 
   // Helper to match actual blocks to planned blocks and calculate deviations
@@ -272,14 +316,18 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             </div>
           ) : (
             plannedBlocks.map((plan) => {
-              const catConfig = CATEGORIES.find((c) => c.value === plan.category) || CATEGORIES[5];
+              const categoryValue = getBlockCategory(tasks, plan);
+              const catConfig = getCategoryConfig(categoryValue);
+              const linkedTask = getLinkedTask(tasks, plan.taskRef);
+              const title = linkedTask?.text.trim() || plan.content.trim() || `已删除事项 ${plan.taskRef ?? ''}`.trim();
+              const note = linkedTask && plan.content.trim() ? plan.content.trim() : '';
               return (
                 <div
                   key={plan.id}
                   className="group relative flex items-start gap-2 sm:gap-3 bg-[radial-gradient(#faf6ee_1px,transparent_1px)] bg-[size:16px_16px] hover:bg-stone-50/50 p-3 rounded-xl border border-[#FAEDE1] shadow-2xs transition-all"
                 >
                   {/* Category Border tag */}
-                  <div className={`absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl ${catConfig.bg.replace('bg-', 'bg-')}`} style={{ backgroundColor: plan.category === 'work' ? '#3b82f6' : plan.category === 'learning' ? '#10b981' : plan.category === 'life' ? '#f59e0b' : plan.category === 'sport' ? '#f43f5e' : plan.category === 'leisure' ? '#6366f1' : '#64748b' }} />
+                  <div className="absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl" style={{ backgroundColor: getCategoryAccent(categoryValue) }} />
 
                   <div className="flex-1 pl-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -291,18 +339,26 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                       </span>
                       {plan.taskRef && (
                         <span className="font-serif text-amber-800 bg-[#FAF1E3] border border-[#E8DCC4] py-0.5 px-2 rounded-full text-xs font-semibold flex items-center gap-1">
-                          编号 {INDEX_SYMBOLS[plan.taskRef - 1] || plan.taskRef}
+                          编号 {getTaskSymbol(plan.taskRef)}
                         </span>
                       )}
+                      <span className={`text-[10px] font-sans px-1.5 py-0.5 rounded-sm border ${catConfig.bg} ${catConfig.color} ${catConfig.borderColor}`}>
+                        {catConfig.label}
+                      </span>
                     </div>
                     
                     <p className="font-serif text-sm text-[#4A3B32] mt-1.5 font-medium break-words">
-                      {plan.content}
+                      {title}
                     </p>
 
                     {plan.taskRef && (
                       <p className="text-xs text-[#8B5A2B] bg-amber-50/50 px-2 py-0.5 rounded-md mt-1 italic inline-block border border-[#FAEDE2] truncate max-w-full">
                         关联: {getTaskText(plan.taskRef)}
+                      </p>
+                    )}
+                    {note && (
+                      <p className="text-xs text-stone-500 bg-white/60 px-2 py-0.5 rounded-md mt-1 inline-block border border-[#FAEDE2] max-w-full break-words">
+                        备注: {note}
                       </p>
                     )}
                   </div>
@@ -397,7 +453,11 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             </div>
           ) : (
             actualBlocks.map((act) => {
-              const catConfig = CATEGORIES.find((c) => c.value === act.category) || CATEGORIES[5];
+              const categoryValue = getBlockCategory(tasks, act);
+              const catConfig = getCategoryConfig(categoryValue);
+              const linkedTask = getLinkedTask(tasks, act.taskRef);
+              const title = linkedTask?.text.trim() || act.content.trim() || `已删除事项 ${act.taskRef ?? ''}`.trim();
+              const note = linkedTask && act.content.trim() ? act.content.trim() : '';
               const stats = getDeviationStatsForActual(act);
 
               return (
@@ -407,7 +467,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   style={{ backgroundColor: 'rgba(240, 253, 244, 0.25)' }}
                 >
                   {/* Category border tag */}
-                  <div className="absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl bg-emerald-600" />
+                  <div className="absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl" style={{ backgroundColor: getCategoryAccent(categoryValue) }} />
 
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -421,9 +481,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                         
                         {act.taskRef && (
                           <span className="font-serif text-emerald-800 bg-[#E1F2E4] border border-[#C5E5CC] py-0.5 px-2 rounded-full text-xs font-semibold">
-                            编号 {INDEX_SYMBOLS[act.taskRef - 1] || act.taskRef}
+                            编号 {getTaskSymbol(act.taskRef)}
                           </span>
                         )}
+                        <span className={`text-[10px] font-sans px-1.5 py-0.5 rounded-sm border ${catConfig.bg} ${catConfig.color} ${catConfig.borderColor}`}>
+                          {catConfig.label}
+                        </span>
 
                         {/* DELTA BADGE Δ */}
                         {stats.type === 'unplanned' ? (
@@ -446,8 +509,14 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                       </div>
 
                       <p className="font-serif text-sm text-[#2D3F34] mt-1.5 font-medium break-words">
-                        {act.content}
+                        {title}
                       </p>
+
+                      {note && (
+                        <p className="text-xs text-[#4E765D] bg-white/60 px-2 py-0.5 rounded-md mt-1 inline-block border border-emerald-100 max-w-full break-words">
+                          实际补充: {note}
+                        </p>
+                      )}
 
                       {act.reason && (
                         <div className="mt-1 flex items-start gap-1 p-1 bg-amber-50/50 border border-amber-100/60 rounded-md">
@@ -518,14 +587,16 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#8B5A2B] mb-1">计划内容 (如：跑步、撰写专栏)</label>
+                <label className="block text-xs font-medium text-[#8B5A2B] mb-1">
+                  {taskRef ? '计划备注（可选）' : '未关联事项时，请写明这段计划'}
+                </label>
                 <input
                   type="text"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="干点什么..."
+                  placeholder={taskRef ? '例如：只做第一稿、先整理材料...' : '例如：吃午饭、通勤、临时沟通...'}
                   className="w-full bg-white border border-[#C2B280] rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800 font-serif"
-                  required
+                  required={!taskRef}
                 />
               </div>
 
@@ -534,30 +605,41 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   <label className="block text-xs font-medium text-[#8B5A2B] mb-1">关联清单任务</label>
                   <select
                     value={taskRef || ''}
-                    onChange={(e) => setTaskRef(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => handleTaskRefChange(e.target.value)}
                     className="w-full bg-white border border-[#C2B280] rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
                   >
                     <option value="">-- 无关联待办 --</option>
                     {tasks.map((t, i) => (
                       <option key={t.id} value={t.id} disabled={!t.text.trim()}>
-                        {INDEX_SYMBOLS[i]} {t.text.trim() ? t.text.substring(0, 15) : `(空)`}
+                        {getIndexSymbol(i)} {t.text.trim() ? t.text.substring(0, 18) : `(空)`}
                       </option>
                     ))}
                   </select>
+                  {filledTasks.length === 0 && (
+                    <p className="mt-1 text-[10px] text-stone-400">还没有可关联的待办事项。</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#8B5A2B] mb-1">活动类型</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as CategoryType)}
-                    className="w-full bg-white border border-[#C2B280] rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-medium text-[#8B5A2B] mb-1">
+                    {taskRef ? '活动类型（来自待办）' : '未关联归类'}
+                  </label>
+                  {taskRef ? (
+                    <div className="w-full bg-amber-50 border border-[#C2B280] rounded-md py-1.5 px-3 text-sm text-[#8B5A2B]">
+                      {getCategoryConfig(category).label}
+                    </div>
+                  ) : (
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value as CategoryType)}
+                      className="w-full bg-white border border-[#C2B280] rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -612,14 +694,16 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-emerald-800 mb-1">真实发生内容 (如：多写了一小时、在等快递)</label>
+                <label className="block text-xs font-medium text-emerald-800 mb-1">
+                  {taskRef ? '实际补充（可选）' : '未关联事项时，请写明真实经过'}
+                </label>
                 <input
                   type="text"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="真实做的事..."
+                  placeholder={taskRef ? '例如：比计划多写了一段、只完成了草稿...' : '例如：临时开会、取快递、休息...'}
                   className="w-full bg-white border border-emerald-300 rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800 font-serif"
-                  required
+                  required={!taskRef}
                 />
               </div>
 
@@ -628,30 +712,41 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   <label className="block text-xs font-medium text-emerald-800 mb-1">关联清单任务</label>
                   <select
                     value={taskRef || ''}
-                    onChange={(e) => setTaskRef(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => handleTaskRefChange(e.target.value)}
                     className="w-full bg-white border border-emerald-300 rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
                   >
                     <option value="">-- 无关联待办 --</option>
                     {tasks.map((t, i) => (
                       <option key={t.id} value={t.id} disabled={!t.text.trim()}>
-                        {INDEX_SYMBOLS[i]} {t.text.trim() ? t.text.substring(0, 15) : `(空)`}
+                        {getIndexSymbol(i)} {t.text.trim() ? t.text.substring(0, 18) : `(空)`}
                       </option>
                     ))}
                   </select>
+                  {filledTasks.length === 0 && (
+                    <p className="mt-1 text-[10px] text-stone-400">还没有可关联的待办事项。</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-emerald-800 mb-1">活动类型</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as CategoryType)}
-                    className="w-full bg-white border border-emerald-300 rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-medium text-emerald-800 mb-1">
+                    {taskRef ? '活动类型（来自待办）' : '未关联归类'}
+                  </label>
+                  {taskRef ? (
+                    <div className="w-full bg-emerald-50 border border-emerald-300 rounded-md py-1.5 px-3 text-sm text-emerald-800">
+                      {getCategoryConfig(category).label}
+                    </div>
+                  ) : (
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value as CategoryType)}
+                      className="w-full bg-white border border-emerald-300 rounded-md py-1.5 px-3 text-sm focus:outline-hidden text-stone-800"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 

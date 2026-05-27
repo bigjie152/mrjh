@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DailyPlannerEntry } from './types';
+import { DailyPlannerEntry, TaskItem } from './types';
 import { initialSampleData, getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
 import { TaskInspector } from './components/TaskInspector';
 import { TimelineSection } from './components/TimelineSection';
@@ -169,11 +169,7 @@ export default function App() {
     const blank: DailyPlannerEntry = {
       date: currentDate,
       weekDay: getWeekDayName(currentDate),
-      tasks: Array.from({ length: 6 }, (_, idx) => ({
-        id: idx + 1,
-        text: '',
-        completed: false,
-      })),
+      tasks: [],
       plannedBlocks: [],
       actualBlocks: [],
       review: {
@@ -197,6 +193,37 @@ export default function App() {
     }
 
     saveAndSyncEntries(updatedEntryList);
+  };
+
+  const handleTasksChange = (updatedTasks: TaskItem[]) => {
+    const remainingIds = new Set(updatedTasks.map((task) => task.id));
+    const removedTasks = new Map<number, TaskItem>(
+      currentEntry.tasks
+        .filter((task) => !remainingIds.has(task.id))
+        .map((task) => [task.id, task]),
+    );
+
+    const plannedBlocks = currentEntry.plannedBlocks.map((block) => {
+      if (!block.taskRef || !removedTasks.has(block.taskRef)) return block;
+      const removedTask = removedTasks.get(block.taskRef);
+      return {
+        ...block,
+        taskRef: null,
+        content: block.content.trim() || removedTask?.text || '原关联事项已删除',
+      };
+    });
+
+    const actualBlocks = currentEntry.actualBlocks.map((block) => {
+      if (!block.taskRef || !removedTasks.has(block.taskRef)) return block;
+      const removedTask = removedTasks.get(block.taskRef);
+      return {
+        ...block,
+        taskRef: null,
+        content: block.content.trim() || removedTask?.text || '原关联事项已删除',
+      };
+    });
+
+    updateCurrentEntry({ tasks: updatedTasks, plannedBlocks, actualBlocks });
   };
 
   // 5. Actions: Copy Yesterday's Tasks
@@ -371,11 +398,14 @@ export default function App() {
               ✕
             </button>
             <h3 className="font-serif text-sm font-bold text-[#DE6B48] flex items-center gap-1.5">
-              💡 认知校准工具的核心价值
+              💡 行动力不足的真正原因，是选择模糊
             </h3>
             <p className="text-xs text-stone-600 font-serif leading-relaxed mt-2 break-words">
-              大部分人的时间焦虑并非来源于忙碌，而是因为 <strong>“对自我时间的预估偏差”</strong>。每次低估写作任务耗时、多睡20分钟引起链条延误，都是校准的机会。
-              本应用完全还原手帐级左右对照原理，点击下方或右侧 <strong>[编号 ①-⑥]</strong> 绑定清单，在暮色时填写真实经历，并在底部填写最大偏差的诱因，逐渐校准掌控度。
+              很多时候，人迟迟动不起来，是因为脑子里同时挂着太多可能性：先做哪件事、做到什么程度、要花多久、今天还能不能完成。
+            </p>
+            <p className="text-xs text-stone-600 font-serif leading-relaxed mt-2 break-words">
+              这张表要做的，就是把这些模糊选择提前处理掉：先列出事项，按权重编号，再放进具体时间段。到了那个时间，只需要照着执行。
+              晚上再用“计划完成”和“实际完成”对照，慢慢校准自己对时间和任务的判断。
             </p>
           </div>
         </div>
@@ -463,10 +493,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Step 1: Checklist 1-6 */}
+              {/* Step 1: weighted checklist */}
               <TaskInspector
                 tasks={currentEntry.tasks}
-                onChange={(tasks) => updateCurrentEntry({ tasks })}
+                onChange={handleTasksChange}
               />
 
               {/* Step 2: Columns Compare Section */}
@@ -481,6 +511,7 @@ export default function App() {
               {/* Step 3: Summarize / Reviews */}
               <ReviewSection
                 review={currentEntry.review}
+                tasks={currentEntry.tasks}
                 plannedBlocks={currentEntry.plannedBlocks}
                 actualBlocks={currentEntry.actualBlocks}
                 onChange={(review) => updateCurrentEntry({ review })}

@@ -20,7 +20,8 @@ function isTaskItem(value: unknown) {
     typeof value.id === 'number' &&
     hasText(value.text) &&
     typeof value.completed === 'boolean' &&
-    (value.notes === undefined || hasText(value.notes))
+    (value.notes === undefined || hasText(value.notes)) &&
+    (value.category === undefined || hasText(value.category))
   );
 }
 
@@ -34,7 +35,7 @@ function isTimeBlock(value: unknown, kind: 'planned' | 'actual') {
     hasText(value.endTime) &&
     (value.taskRef === null || typeof value.taskRef === 'number') &&
     hasText(value.content) &&
-    hasText(value.category) &&
+    (value.category === undefined || hasText(value.category)) &&
     typeof value[minutesKey] === 'number' &&
     (kind === 'planned' || value.reason === undefined || hasText(value.reason))
   );

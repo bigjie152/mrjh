@@ -2,6 +2,7 @@ import React from 'react';
 import { DailyPlannerEntry, CATEGORIES } from '../types';
 import { Award, CheckSquare, Clock, Flame, BarChart3, Activity, ShieldAlert } from 'lucide-react';
 import { formatMinutes, getLocalDateString, shiftDateString } from '../sampleData';
+import { getBlockCategory } from '../plannerUtils';
 
 interface StatsSectionProps {
   entries: DailyPlannerEntry[];
@@ -52,10 +53,10 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
     let totalActual = 0;
     entries.forEach((entry) => {
       totalPlanned += entry.plannedBlocks
-        .filter((b) => b.category === cat.value)
+        .filter((b) => getBlockCategory(entry.tasks, b) === cat.value)
         .reduce((sum, b) => sum + b.estimatedMinutes, 0);
       totalActual += entry.actualBlocks
-        .filter((b) => b.category === cat.value)
+        .filter((b) => getBlockCategory(entry.tasks, b) === cat.value)
         .reduce((sum, b) => sum + b.actualMinutes, 0);
     });
 
@@ -78,10 +79,10 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
       let possible = 0;
       CATEGORIES.forEach((cat) => {
         const p = e.plannedBlocks
-          .filter((b) => b.category === cat.value)
+          .filter((b) => getBlockCategory(e.tasks, b) === cat.value)
           .reduce((sum, b) => sum + b.estimatedMinutes, 0);
         const a = e.actualBlocks
-          .filter((b) => b.category === cat.value)
+          .filter((b) => getBlockCategory(e.tasks, b) === cat.value)
           .reduce((sum, b) => sum + b.actualMinutes, 0);
         overlap += Math.min(p, a);
         possible += Math.max(p, a);
@@ -155,8 +156,8 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
               entries.forEach((e) => {
                 let overlap = 0, possible = 0;
                 CATEGORIES.forEach((cat) => {
-                  const p = e.plannedBlocks.filter((b) => b.category === cat.value).reduce((s, b) => s + b.estimatedMinutes, 0);
-                  const a = e.actualBlocks.filter((b) => b.category === cat.value).reduce((s, b) => s + b.actualMinutes, 0);
+                  const p = e.plannedBlocks.filter((b) => getBlockCategory(e.tasks, b) === cat.value).reduce((s, b) => s + b.estimatedMinutes, 0);
+                  const a = e.actualBlocks.filter((b) => getBlockCategory(e.tasks, b) === cat.value).reduce((s, b) => s + b.actualMinutes, 0);
                   overlap += Math.min(p, a);
                   possible += Math.max(p, a);
                 });
