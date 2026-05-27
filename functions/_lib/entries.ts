@@ -76,31 +76,32 @@ export function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-export function upsertEntryStatement(db: D1Database, entry: DailyPlannerEntry) {
+export function upsertEntryStatement(db: D1Database, userId: string, entry: DailyPlannerEntry) {
   return db
     .prepare(
-      `INSERT INTO daily_entries (date, week_day, entry_json, updated_at)
-       VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
-       ON CONFLICT(date) DO UPDATE SET
+      `INSERT INTO daily_entries (user_id, date, week_day, entry_json, updated_at)
+       VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, date) DO UPDATE SET
          week_day = excluded.week_day,
          entry_json = excluded.entry_json,
          updated_at = CURRENT_TIMESTAMP`
     )
-    .bind(entry.date, entry.weekDay, JSON.stringify(entry));
+    .bind(userId, entry.date, entry.weekDay, JSON.stringify(entry));
 }
 
-export async function listEntries(db: D1Database): Promise<DailyPlannerEntry[]> {
+export async function listEntries(db: D1Database, userId: string): Promise<DailyPlannerEntry[]> {
   const result = await db
-    .prepare('SELECT entry_json FROM daily_entries ORDER BY date DESC')
+    .prepare('SELECT entry_json FROM daily_entries WHERE user_id = ?1 ORDER BY date DESC')
+    .bind(userId)
     .all<{ entry_json: string }>();
 
   return result.results.map((row) => JSON.parse(row.entry_json) as DailyPlannerEntry);
 }
 
-export async function findEntry(db: D1Database, date: string): Promise<DailyPlannerEntry | null> {
+export async function findEntry(db: D1Database, userId: string, date: string): Promise<DailyPlannerEntry | null> {
   const row = await db
-    .prepare('SELECT entry_json FROM daily_entries WHERE date = ?1')
-    .bind(date)
+    .prepare('SELECT entry_json FROM daily_entries WHERE user_id = ?1 AND date = ?2')
+    .bind(userId, date)
     .first<{ entry_json: string }>();
 
   return row ? (JSON.parse(row.entry_json) as DailyPlannerEntry) : null;

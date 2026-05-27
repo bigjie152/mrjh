@@ -7,7 +7,8 @@
 - 前端：React + TypeScript + Vite + Tailwind CSS
 - 后端：Cloudflare Pages Functions
 - 数据库：Cloudflare D1
-- 本地兜底：浏览器 localStorage
+- 账号：应用内用户名密码 + HttpOnly Cookie 会话
+- 本地兜底：按账号隔离的浏览器 localStorage
 
 ## 本地开发
 
@@ -39,9 +40,19 @@ npm run build
 
 - 生产环境数据保存到 Cloudflare D1。
 - 本地 Cloudflare 模拟环境数据保存在 `.wrangler/state/`。
-- 浏览器 localStorage 会保留一份即时缓存，用于提升输入流畅度和离线兜底。
+- 浏览器 localStorage 会按账号保留一份即时缓存，用于提升输入流畅度和离线兜底。
+- 每个账号只能读取、保存、搜索和统计自己的每日记录。
 
 旧版 `db.json` 已不再作为正式数据源。
+
+## 账号功能
+
+应用支持简易多人使用：
+
+- 用户可以自行注册用户名和密码。
+- 密码会加盐哈希后保存，不保存明文密码。
+- 登录状态通过 HttpOnly Cookie 维护。
+- 第一位注册用户会自动继承旧版本中尚未归属账号的历史记录。
 
 ## Cloudflare 部署准备
 

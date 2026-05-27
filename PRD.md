@@ -37,6 +37,7 @@
 - 页面、按钮、表单、空状态、错误提示都使用中文。
 - 文案要具体、自然、可执行。
 - 可以保留少量装饰性英文，但不能影响主要信息理解。
+- 账号登录、注册、退出和错误提示都使用中文。
 
 ### 5.2 交互流畅
 
@@ -49,6 +50,7 @@
 
 - 正式数据保存到 Cloudflare D1。
 - 前端可以使用本地缓存提升体验，但不能把 localStorage 当作唯一数据源。
+- 多账号数据必须按用户隔离。
 - 需要支持导出备份。
 - 后续 schema 变更要考虑迁移。
 
@@ -106,6 +108,8 @@
 必须支持：
 
 - 数据持久化到 Cloudflare D1。
+- 支持简易账号注册、登录和退出。
+- 每个账号拥有独立的每日记录、历史搜索和统计数据。
 - 本地开发可使用 D1 local 模式或等价方案。
 - 支持导出 JSON 备份。
 - API 返回明确中文错误信息或错误码映射。
@@ -172,6 +176,7 @@
 ### 9.1 daily_entries
 
 ```text
+user_id
 id
 date
 weekday
@@ -196,7 +201,27 @@ created_at
 updated_at
 ```
 
-### 9.3 time_blocks
+### 9.3 users
+
+```text
+id
+username
+password_hash
+password_salt
+created_at
+updated_at
+```
+
+### 9.4 sessions
+
+```text
+token_hash
+user_id
+created_at
+expires_at
+```
+
+### 9.5 time_blocks
 
 ```text
 id
@@ -222,6 +247,10 @@ GET    /api/entries
 GET    /api/entries/:date
 PUT    /api/entries/:date
 DELETE /api/entries/:date
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/me
 GET    /api/stats/summary
 GET    /api/export/json
 POST   /api/import/json

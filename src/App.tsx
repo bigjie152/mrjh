@@ -1,20 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DailyPlannerEntry, TaskItem } from './types';
-import { initialSampleData, getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
+import { AuthUser, DailyPlannerEntry, TaskItem } from './types';
+import { getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
+import { AuthScreen } from './components/AuthScreen';
 import { TaskInspector } from './components/TaskInspector';
 import { TimelineSection } from './components/TimelineSection';
 import { ReviewSection } from './components/ReviewSection';
 import { HistorySection } from './components/HistorySection';
 import { StatsSection } from './components/StatsSection';
-import { Calendar, Download, BarChart2, BookOpen, Copy, Archive } from 'lucide-react';
+import { Calendar, Download, BarChart2, BookOpen, Copy, Archive, LogOut, UserCircle } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
 const STORAGE_KEY = 'daily_planner_entries_v1';
 const SYNC_DEBOUNCE_MS = 700;
 
-function readStoredEntries(): DailyPlannerEntry[] | null {
+function getStorageKey(userId: string) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function readStoredEntries(userId: string): DailyPlannerEntry[] | null {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getStorageKey(userId));
     if (!stored) return null;
     const parsed = JSON.parse(stored);
     return Array.isArray(parsed) ? parsed : null;
@@ -24,9 +29,9 @@ function readStoredEntries(): DailyPlannerEntry[] | null {
   }
 }
 
-function writeStoredEntries(entries: DailyPlannerEntry[]) {
+function writeStoredEntries(userId: string, entries: DailyPlannerEntry[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(getStorageKey(userId), JSON.stringify(entries));
   } catch (error) {
     console.error('Failed to save entries to localStorage.', error);
   }
@@ -58,6 +63,8 @@ function normalizeEntries(entries: DailyPlannerEntry[]) {
 }
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'anonymous'>('loading');
   const [entries, setEntries] = useState<DailyPlannerEntry[]>([]);
   const [currentDate, setCurrentDate] = useState<string>(getLocalDateString);
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'stats'>('today');
@@ -66,20 +73,51 @@ export default function App() {
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncRef = useRef<DailyPlannerEntry[] | null>(null);
 
-  // 1. Initialize State. Load from Cloudflare D1 backend, fallback to LocalStorage.
   useEffect(() => {
+    async function loadCurrentUser() {
+      try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json().catch(() => null) as { user?: AuthUser } | null;
+
+        if (response.ok && data?.user) {
+          setAuthUser(data.user);
+          setAuthStatus('authenticated');
+          return;
+        }
+      } catch (error) {
+        console.warn('Unable to read auth status.', error);
+      }
+
+      setAuthUser(null);
+      setAuthStatus('anonymous');
+    }
+
+    loadCurrentUser();
+  }, []);
+
+  // 1. Initialize State. Load from Cloudflare D1 backend, fallback to per-user LocalStorage.
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !authUser) return;
+
     async function loadData() {
-      const storedEntries = readStoredEntries();
+      const storedEntries = readStoredEntries(authUser.id);
 
       try {
         const response = await fetch('/api/entries');
+        if (response.status === 401) {
+          setAuthUser(null);
+          setAuthStatus('anonymous');
+          setEntries([]);
+          return;
+        }
+
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data)) {
             if (data.length > 0) {
               const normalizedData = normalizeEntries(data);
               setEntries(normalizedData);
-              writeStoredEntries(normalizedData);
+              writeStoredEntries(authUser.id, normalizedData);
               if (JSON.stringify(data) !== JSON.stringify(normalizedData)) {
                 fetch('/api/entries', {
                   method: 'POST',
@@ -117,12 +155,11 @@ export default function App() {
         const normalizedStoredEntries = normalizeEntries(storedEntries);
         setEntries(normalizedStoredEntries);
       } else {
-        setEntries(initialSampleData);
-        writeStoredEntries(initialSampleData);
+        setEntries([]);
       }
     }
     loadData();
-  }, []);
+  }, [authStatus, authUser]);
 
   useEffect(() => {
     const flushPendingSync = () => {
@@ -195,9 +232,46 @@ export default function App() {
 
   // 2. Save state helper (Persists immediately to local state & localstorage, fires backend update in background)
   const saveAndSyncEntries = (updatedEntries: DailyPlannerEntry[]) => {
+    if (!authUser) return;
+
     setEntries(updatedEntries);
-    writeStoredEntries(updatedEntries);
+    writeStoredEntries(authUser.id, updatedEntries);
     queueServerSync(updatedEntries);
+  };
+
+  const handleAuthenticated = (user: AuthUser) => {
+    setAuthUser(user);
+    setAuthStatus('authenticated');
+    setEntries([]);
+    setActiveTab('today');
+  };
+
+  const handleLogout = async () => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+    }
+
+    if (pendingSyncRef.current) {
+      const payload = JSON.stringify(pendingSyncRef.current);
+      pendingSyncRef.current = null;
+      await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch((error) => {
+        console.warn('Unable to sync before logout.', error);
+      });
+    }
+
+    await fetch('/api/auth/logout', { method: 'POST' }).catch((error) => {
+      console.warn('Unable to logout on server.', error);
+    });
+
+    setAuthUser(null);
+    setAuthStatus('anonymous');
+    setEntries([]);
+    setActiveTab('today');
   };
 
   // 3. Locate or build current day's entry records
@@ -354,6 +428,20 @@ export default function App() {
     });
   };
 
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#F4F1EA] text-[#4A3B32] flex items-center justify-center font-serif">
+        <div className="rounded-2xl border-2 border-[#EADFC9] bg-[#FAF8F5] px-6 py-4 text-sm font-bold shadow-sm">
+          正在打开墨迹手帐...
+        </div>
+      </div>
+    );
+  }
+
+  if (authStatus === 'anonymous' || !authUser) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F4F1EA] text-[#4A3B32] font-sans antialiased flex flex-col justify-between selection:bg-[#E2D5BA] selection:text-[#5c4033]" id="master-root">
       {/* GLOBAL BANNER */}
@@ -378,46 +466,66 @@ export default function App() {
             </div>
 
             {/* Main Tabs controller */}
-            <div className="mx-auto grid w-full max-w-[360px] min-w-0 grid-cols-3 items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200 md:mx-0 md:flex md:w-auto md:max-w-none">
-              <button
-                type="button"
-                onClick={() => setActiveTab('today')}
-                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
-                  activeTab === 'today'
-                    ? 'bg-[#8B5A2B] text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="min-w-0 truncate sm:hidden">今日</span>
-                <span className="hidden min-w-0 truncate sm:inline">今日对照</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('history')}
-                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
-                  activeTab === 'history'
-                    ? 'bg-[#8B5A2B] text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <Archive className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="min-w-0 truncate sm:hidden">历史</span>
-                <span className="hidden min-w-0 truncate sm:inline">历史归档</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('stats')}
-                className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
-                  activeTab === 'stats'
-                    ? 'bg-[#8B5A2B] text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <BarChart2 className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="min-w-0 truncate sm:hidden">统计</span>
-                <span className="hidden min-w-0 truncate sm:inline">偏差统计</span>
-              </button>
+            <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:flex-row md:items-center">
+              <div className="mx-auto grid w-full max-w-[360px] min-w-0 grid-cols-3 items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200 md:mx-0 md:flex md:w-auto md:max-w-none">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('today')}
+                  className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
+                    activeTab === 'today'
+                      ? 'bg-[#8B5A2B] text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="min-w-0 truncate sm:hidden">今日</span>
+                  <span className="hidden min-w-0 truncate sm:inline">今日对照</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
+                    activeTab === 'history'
+                      ? 'bg-[#8B5A2B] text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="min-w-0 truncate sm:hidden">历史</span>
+                  <span className="hidden min-w-0 truncate sm:inline">历史归档</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('stats')}
+                  className={`min-w-0 cursor-pointer flex items-center justify-center gap-1 px-1.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-serif font-bold transition-all ${
+                    activeTab === 'stats'
+                      ? 'bg-[#8B5A2B] text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  <BarChart2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="min-w-0 truncate sm:hidden">统计</span>
+                  <span className="hidden min-w-0 truncate sm:inline">偏差统计</span>
+                </button>
+              </div>
+
+              <div className="mx-auto flex w-full max-w-[220px] items-center justify-between gap-2 rounded-xl border border-[#E8DCC4] bg-[#FAF8F5] px-3 py-1.5 text-[#8B5A2B] shadow-2xs md:mx-0 md:w-auto">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1 text-[10px] font-serif font-bold text-[#8B5A2B]">
+                    <UserCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                    已登录
+                  </div>
+                  <div className="truncate font-mono text-xs font-black text-[#5c4033]">{authUser.username}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="cursor-pointer flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 transition-colors hover:text-[#8B5A2B] hover:bg-[#FAF1E3]"
+                  title="退出登录"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,8 +1,12 @@
 import { jsonResponse, listEntries, upsertEntryStatement, validateEntries, type Env } from '../../_lib/entries';
+import { requireUser } from '../../_lib/auth';
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  const auth = await requireUser(request, env.DB);
+  if (auth.ok === false) return auth.response;
+
   try {
-    const entries = await listEntries(env.DB);
+    const entries = await listEntries(env.DB, auth.user.id);
     return jsonResponse(entries);
   } catch (error) {
     console.error('Failed to list daily entries:', error);
@@ -11,6 +15,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const auth = await requireUser(request, env.DB);
+  if (auth.ok === false) return auth.response;
+
   const payload = await request.json().catch(() => null);
   const entries = validateEntries(payload);
 
@@ -20,8 +27,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   try {
     await env.DB.batch([
-      env.DB.prepare('DELETE FROM daily_entries'),
-      ...entries.map((entry) => upsertEntryStatement(env.DB, entry)),
+      env.DB.prepare('DELETE FROM daily_entries WHERE user_id = ?1').bind(auth.user.id),
+      ...entries.map((entry) => upsertEntryStatement(env.DB, auth.user.id, entry)),
     ]);
 
     return jsonResponse({ success: true, count: entries.length });
