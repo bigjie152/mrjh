@@ -32,6 +32,31 @@ function writeStoredEntries(entries: DailyPlannerEntry[]) {
   }
 }
 
+function normalizeEntry(entry: DailyPlannerEntry): DailyPlannerEntry {
+  const retainedTaskIds = new Set(
+    entry.tasks
+      .filter((task) => task.text.trim().length > 0 || (task.notes ?? '').trim().length > 0)
+      .map((task) => task.id),
+  );
+
+  return {
+    ...entry,
+    tasks: entry.tasks
+      .filter((task) => retainedTaskIds.has(task.id))
+      .map((task) => ({ ...task, category: task.category ?? 'work' })),
+    plannedBlocks: entry.plannedBlocks.map((block) => (
+      block.taskRef && !retainedTaskIds.has(block.taskRef) ? { ...block, taskRef: null } : block
+    )),
+    actualBlocks: entry.actualBlocks.map((block) => (
+      block.taskRef && !retainedTaskIds.has(block.taskRef) ? { ...block, taskRef: null } : block
+    )),
+  };
+}
+
+function normalizeEntries(entries: DailyPlannerEntry[]) {
+  return entries.map(normalizeEntry);
+}
+
 export default function App() {
   const [entries, setEntries] = useState<DailyPlannerEntry[]>([]);
   const [currentDate, setCurrentDate] = useState<string>(getLocalDateString);
@@ -52,17 +77,28 @@ export default function App() {
           const data = await response.json();
           if (Array.isArray(data)) {
             if (data.length > 0) {
-              setEntries(data);
-              writeStoredEntries(data);
+              const normalizedData = normalizeEntries(data);
+              setEntries(normalizedData);
+              writeStoredEntries(normalizedData);
+              if (JSON.stringify(data) !== JSON.stringify(normalizedData)) {
+                fetch('/api/entries', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(normalizedData),
+                }).catch((err) => {
+                  console.warn('Unable to persist normalized entries.', err);
+                });
+              }
               return;
             }
 
             if (storedEntries && storedEntries.length > 0) {
-              setEntries(storedEntries);
+              const normalizedStoredEntries = normalizeEntries(storedEntries);
+              setEntries(normalizedStoredEntries);
               fetch('/api/entries', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(storedEntries),
+                body: JSON.stringify(normalizedStoredEntries),
               }).catch((err) => {
                 console.warn('Unable to seed empty D1 database from local cache.', err);
               });
@@ -78,7 +114,8 @@ export default function App() {
       }
 
       if (storedEntries && storedEntries.length > 0) {
-        setEntries(storedEntries);
+        const normalizedStoredEntries = normalizeEntries(storedEntries);
+        setEntries(normalizedStoredEntries);
       } else {
         setEntries(initialSampleData);
         writeStoredEntries(initialSampleData);
