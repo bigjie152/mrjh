@@ -1,9 +1,0 @@
-node_modules/
-build/
-dist/
-coverage/
-db.json
-.DS_Store
-*.log
-.env*
-!.env.example

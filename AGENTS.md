@@ -14,11 +14,11 @@
 
 当前产品目标以根目录 `PRD.md` 为准。
 
-## 当前参考代码
+## 当前代码结构
 
-`每日计划与复盘/` 是 Gemini 生成的完整参考项目。它可以作为 UI 风格、布局和交互参考，但正式项目是否直接采用，需要先评估后再决定。
+正式项目代码位于仓库根目录，Cloudflare Pages 和 GitHub 都以仓库根目录作为构建入口。
 
-参考重点：
+早期 Gemini 原型的设计方向已吸收到正式实现中，后续参考重点：
 
 - 纸感手帐风格。
 - 左右对照布局。
@@ -55,14 +55,14 @@ Gemini 参考项目当前使用 Express + 本地 `db.json`，可以本地运行�
 
 ## 验证命令
 
-如果需要验证 `每日计划与复盘/` 参考项目：
+如果需要验证当前项目：
 
 ```bash
-cd /Volumes/DevDisk/个人文件/mrjh/每日计划与复盘
+cd /Volumes/DevDisk/个人文件/mrjh
 npm ci
 npm run lint
 npm run build
-npm start
+npm run dev
 ```
 
 访问：

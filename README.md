@@ -14,7 +14,7 @@
 第一次运行：
 
 ```bash
-npm install
+npm ci
 npm run build
 npm run db:migrate:local
 npm run dev
