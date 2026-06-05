@@ -1,8 +1,11 @@
 import {
   createUserSession,
+  InvalidRegistrationCodeError,
+  normalizeRegistrationCode,
   normalizeUsername,
   registerUser,
   validatePassword,
+  validateRegistrationCode,
   validateUsername,
   type Env,
 } from '../../_lib/auth';
@@ -12,15 +15,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const payload = await request.json().catch(() => null);
   const username = normalizeUsername(payload && typeof payload === 'object' ? (payload as { username?: unknown }).username : null);
   const password = payload && typeof payload === 'object' ? (payload as { password?: unknown }).password : null;
+  const registrationCode = normalizeRegistrationCode(
+    payload && typeof payload === 'object' ? (payload as { registrationCode?: unknown }).registrationCode : null,
+  );
   const usernameError = validateUsername(username);
   const passwordError = validatePassword(password);
+  const registrationCodeError = validateRegistrationCode(registrationCode);
 
-  if (usernameError || passwordError) {
-    return jsonResponse({ error: usernameError ?? passwordError }, { status: 400 });
+  if (usernameError || passwordError || registrationCodeError) {
+    return jsonResponse({ error: usernameError ?? passwordError ?? registrationCodeError }, { status: 400 });
   }
 
   try {
-    const user = await registerUser(env.DB, username, password as string);
+    const user = await registerUser(env.DB, username, password as string, registrationCode);
     const cookie = await createUserSession(env.DB, user.id, request);
 
     return jsonResponse(
@@ -35,6 +42,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('UNIQUE') || message.includes('constraint')) {
       return jsonResponse({ error: '这个用户名已经被注册。' }, { status: 409 });
+    }
+
+    if (error instanceof InvalidRegistrationCodeError) {
+      return jsonResponse({ error: '注册口令无效或已被使用。' }, { status: 403 });
     }
 
     console.error('Failed to register user:', error);

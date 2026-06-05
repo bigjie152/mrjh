@@ -11,6 +11,13 @@ export type AuthResult =
   | { ok: true; user: AuthUser }
   | { ok: false; response: Response };
 
+export class InvalidRegistrationCodeError extends Error {
+  constructor() {
+    super('Invalid registration code');
+    this.name = 'InvalidRegistrationCodeError';
+  }
+}
+
 const SESSION_COOKIE = 'mrjh_session';
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const LEGACY_USER_ID = '__legacy__';
@@ -34,6 +41,10 @@ async function sha256Hex(value: string) {
 
 async function hashPassword(password: string, salt: string) {
   return sha256Hex(`${salt}:${password}`);
+}
+
+async function hashRegistrationCode(code: string) {
+  return sha256Hex(`registration-code:${code}`);
 }
 
 function timingSafeEqual(a: string, b: string) {
@@ -76,6 +87,10 @@ export function normalizeUsername(username: unknown) {
   return typeof username === 'string' ? username.trim() : '';
 }
 
+export function normalizeRegistrationCode(code: unknown) {
+  return typeof code === 'string' ? code.trim() : '';
+}
+
 export function validateUsername(username: string) {
   if (username.length < 2 || username.length > 24) {
     return '用户名需要是 2-24 个字符。';
@@ -95,6 +110,12 @@ export function validatePassword(password: unknown) {
   return null;
 }
 
+export function validateRegistrationCode(code: string) {
+  if (!code) return '请输入注册口令。';
+  if (code.length > 80) return '注册口令长度不能超过 80 位。';
+  return null;
+}
+
 export async function createUserSession(db: D1Database, userId: string, request: Request) {
   const token = randomHex(32);
   const tokenHash = await sha256Hex(token);
@@ -109,10 +130,20 @@ export async function createUserSession(db: D1Database, userId: string, request:
   return sessionCookie(token, request);
 }
 
-export async function registerUser(db: D1Database, username: string, password: string) {
+export async function registerUser(db: D1Database, username: string, password: string, registrationCode: string) {
   const userId = `usr_${randomHex(12)}`;
   const salt = randomHex(16);
   const passwordHash = await hashPassword(password, salt);
+  const registrationCodeHash = await hashRegistrationCode(registrationCode);
+  const codeRow = await db
+    .prepare('SELECT code_hash FROM registration_codes WHERE code_hash = ?1 AND consumed_at IS NULL')
+    .bind(registrationCodeHash)
+    .first<{ code_hash: string }>();
+
+  if (!codeRow) {
+    throw new InvalidRegistrationCodeError();
+  }
+
   const userCount = await db.prepare('SELECT COUNT(*) AS count FROM users').first<{ count: number }>();
   const shouldClaimLegacyEntries = (userCount?.count ?? 0) === 0;
 
@@ -123,6 +154,16 @@ export async function registerUser(db: D1Database, username: string, password: s
     )
     .bind(userId, username, passwordHash, salt)
     .run();
+
+  const consumeResult = await db
+    .prepare('UPDATE registration_codes SET consumed_at = CURRENT_TIMESTAMP, consumed_by = ?1 WHERE code_hash = ?2 AND consumed_at IS NULL')
+    .bind(userId, registrationCodeHash)
+    .run();
+
+  if (consumeResult.meta.changes !== 1) {
+    await db.prepare('DELETE FROM users WHERE id = ?1').bind(userId).run();
+    throw new InvalidRegistrationCodeError();
+  }
 
   if (shouldClaimLegacyEntries) {
     await db.prepare('UPDATE daily_entries SET user_id = ?1 WHERE user_id = ?2').bind(userId, LEGACY_USER_ID).run();

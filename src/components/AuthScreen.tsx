@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HelpCircle, Lock, LogIn, User, UserPlus } from 'lucide-react';
+import { HelpCircle, KeyRound, Lock, LogIn, User, UserPlus } from 'lucide-react';
 import type { AuthUser } from '../types';
 
 type AuthMode = 'login' | 'register';
@@ -12,6 +12,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [message, setMessage] = useState('注册成功，立即登录吧！');
   const [messageTone, setMessageTone] = useState<'warm' | 'error'>('warm');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +30,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(mode === 'login' ? { username, password } : { username, password, registrationCode }),
       });
       const data = await response.json().catch(() => null) as { user?: AuthUser; error?: string } | null;
 
@@ -55,6 +56,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
     setMode(nextMode);
     setMessageTone('warm');
     setMessage(nextMode === 'login' ? '注册成功，立即登录吧！' : '创建一个自己的墨迹手帐账号。');
+    setRegistrationCode('');
   };
 
   return (
@@ -149,6 +151,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                   />
                 </div>
               </label>
+
+              {mode === 'register' && (
+                <label className="block">
+                  <span className="block text-xs font-serif font-bold text-[#8B5A2B] mb-2">注册口令</span>
+                  <div className="flex items-center gap-2 rounded-xl border border-[#E8DCC4] bg-white px-3 py-2.5 focus-within:border-[#8B5A2B] transition-colors">
+                    <KeyRound className="w-4 h-4 text-stone-400" />
+                    <input
+                      value={registrationCode}
+                      onChange={(event) => setRegistrationCode(event.target.value)}
+                      className="min-w-0 flex-1 bg-transparent text-sm text-[#4A3B32] outline-hidden placeholder:text-stone-400"
+                      placeholder="请输入一次性注册口令..."
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                </label>
+              )}
 
               <button
                 type="submit"

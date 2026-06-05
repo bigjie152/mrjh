@@ -16,6 +16,7 @@ db.json
 !.env.example
 .dev.vars
 .wrangler/
+registration-codes.local.txt
 
 # logs
 *.log

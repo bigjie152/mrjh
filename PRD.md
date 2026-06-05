@@ -108,7 +108,7 @@
 必须支持：
 
 - 数据持久化到 Cloudflare D1。
-- 支持简易账号注册、登录和退出。
+- 支持简易账号注册、登录和退出；新账号注册需要一次性注册口令。
 - 每个账号拥有独立的每日记录、历史搜索和统计数据。
 - 本地开发可使用 D1 local 模式或等价方案。
 - 支持导出 JSON 备份。
@@ -221,7 +221,16 @@ created_at
 expires_at
 ```
 
-### 9.5 time_blocks
+### 9.5 registration_codes
+
+```text
+code_hash
+created_at
+consumed_at
+consumed_by
+```
+
+### 9.6 time_blocks
 
 ```text
 id
@@ -238,7 +247,7 @@ created_at
 updated_at
 ```
 
-第一版可以先使用三张表。后续如果需要更强的统计能力，再拆分类表或模板表。
+第一版可以先使用账号、会话、每日记录和注册口令表。后续如果需要更强的统计能力，再拆分类表或模板表。
 
 ## 10. API 草案
 
