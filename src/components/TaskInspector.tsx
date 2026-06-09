@@ -65,10 +65,10 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
   };
 
   return (
-    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm relative overflow-hidden" id="task-inspector-panel">
+    <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-5 shadow-sm relative overflow-hidden" id="task-inspector-panel">
       <div className="absolute inset-x-0 top-0 h-4 bg-[#8B5A2B]/10 border-b border-[#EADFC9]" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-2 mb-5 sm:mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-2 mb-4">
         <h2 className="font-serif text-lg sm:text-xl font-bold text-[#5c4033] flex flex-wrap items-center gap-2">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#D4AF37]" />
           待办事项清单
@@ -102,7 +102,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
           {tasks.map((task, idx) => {
             const symbol = getIndexSymbol(idx);
             const isEditing = editingId === task.id;
@@ -127,7 +127,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                   setDraggingId(null);
                 }}
                 onDragEnd={() => setDraggingId(null)}
-                className={`relative flex flex-col p-3 rounded-xl border transition-all duration-200 ${
+                className={`relative flex flex-col p-2.5 sm:p-3 rounded-lg border transition-all duration-200 ${
                   task.completed
                     ? 'bg-stone-50 border-stone-200 opacity-75'
                     : isFilled
@@ -138,12 +138,12 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                 onMouseLeave={() => setHoveredId(null)}
                 id={`task-item-${task.id}`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2">
                   <span className="mt-1 text-stone-300 cursor-grab active:cursor-grabbing flex-shrink-0" title="拖拽排序">
-                    <GripVertical className="w-4 h-4" />
+                    <GripVertical className="w-3.5 h-3.5" />
                   </span>
 
-                  <span className="text-xl sm:text-2xl text-[#8B5A2B] font-serif select-none mt-0.5 min-w-[24px] sm:min-w-[28px] text-center">
+                  <span className="text-lg sm:text-xl text-[#8B5A2B] font-serif select-none mt-0.5 min-w-[22px] sm:min-w-[24px] text-center leading-none">
                     {symbol}
                   </span>
 
@@ -151,15 +151,15 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                     type="button"
                     onClick={() => handleToggle(task.id)}
                     disabled={!isFilled}
-                    className={`mt-1.5 focus:outline-hidden cursor-pointer flex-shrink-0 transition-transform active:scale-90 ${
+                    className={`mt-1 focus:outline-hidden cursor-pointer flex-shrink-0 transition-transform active:scale-90 ${
                       !isFilled ? 'opacity-30 cursor-not-allowed' : ''
                     }`}
                     title={task.completed ? '标记为未完成' : '标记为已完成'}
                   >
                     {task.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 fill-emerald-50" />
+                      <CheckCircle2 className="h-[18px] w-[18px] text-emerald-600 fill-emerald-50" />
                     ) : (
-                      <Circle className="w-5 h-5 text-stone-400 hover:text-amber-700" />
+                      <Circle className="h-[18px] w-[18px] text-stone-400 hover:text-amber-700" />
                     )}
                   </button>
 
@@ -199,19 +199,19 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                         </div>
                       </div>
                     ) : (
-                      <div onClick={() => setEditingId(task.id)} className="cursor-pointer group py-1">
+                      <div onClick={() => setEditingId(task.id)} className="cursor-pointer group py-0.5">
                         {isFilled ? (
-                          <div className="space-y-1">
+                          <div className="space-y-0.5">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span className={`text-[10px] font-sans px-1.5 py-0.5 rounded-sm border ${category.bg} ${category.color} ${category.borderColor}`}>
                                 {category.label}
                               </span>
-                              <p className={`text-sm font-serif text-[#4A3B32] break-words ${task.completed ? 'line-through text-stone-400' : ''}`}>
+                              <p className={`text-sm font-serif leading-snug text-[#4A3B32] break-words ${task.completed ? 'line-through text-stone-400' : ''}`}>
                                 {task.text}
                               </p>
                             </div>
                             {task.notes && (
-                              <p className="text-xs text-[#8c7a6b] font-sans italic bg-amber-50/60 py-0.5 px-2 rounded-md border border-[#F2ECE1] inline-block max-w-full break-words">
+                              <p className="text-[11px] text-[#8c7a6b] font-sans italic bg-amber-50/60 py-0.5 px-1.5 rounded-md border border-[#F2ECE1] inline-block max-w-full break-words">
                                 注: {task.notes}
                               </p>
                             )}
@@ -225,7 +225,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                     )}
                   </div>
 
-                  <div className={`flex flex-col items-center gap-1 self-start pt-0.5 ${hoveredId === task.id || isEditing ? 'opacity-100' : 'opacity-100 sm:opacity-0'} transition-opacity`}>
+                  <div className={`flex flex-col items-center gap-0.5 self-start ${hoveredId === task.id || isEditing ? 'opacity-100' : 'opacity-100 sm:opacity-0'} transition-opacity`}>
                     <button
                       type="button"
                       onClick={() => moveTask(task.id, -1)}

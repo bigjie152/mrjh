@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { PlannedBlock, ActualBlock, CategoryType, CATEGORIES, TaskItem } from '../types';
 import { Plus, Copy, Trash2, Edit2, AlertTriangle, RefreshCw } from 'lucide-react';
-import { calculateTimeDiffMinutes, formatMinutes } from '../sampleData';
-import { getBlockCategory, getIndexSymbol, getLinkedTask, getTaskCategory } from '../plannerUtils';
+import { calculateTimeDiffMinutes, formatMinutes, formatSignedMinutes } from '../sampleData';
+import {
+  getBlockCategory,
+  getBlockTaskRefs,
+  getIndexSymbol,
+  getLinkedTask,
+  getPrimaryTaskRef,
+  getSecondaryTaskRefs,
+  getTaskCategory,
+} from '../plannerUtils';
 
 interface TimelineSectionProps {
   tasks: TaskItem[];
@@ -41,6 +49,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const [endTime, setEndTime] = useState('09:30');
   const [content, setContent] = useState('');
   const [taskRef, setTaskRef] = useState<number | null>(null);
+  const [parallelTaskRefs, setParallelTaskRefs] = useState<number[]>([]);
   const [category, setCategory] = useState<CategoryType>('work');
   const [reason, setReason] = useState('');
 
@@ -52,10 +61,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     return index >= 0 ? getIndexSymbol(index) : `${ref}`;
   };
 
-  const getTaskText = (ref: number | null) => {
+  const getTaskLabel = (ref: number) => {
     const found = getLinkedTask(tasks, ref);
-    if (!ref) return '';
-    return found && found.text.trim() ? found.text : `已删除事项 ${ref}`;
+    return found?.text.trim() || `已删除事项 ${ref}`;
   };
 
   const getCategoryConfig = (value: CategoryType) => (
@@ -65,12 +73,25 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const handleTaskRefChange = (value: string) => {
     const nextRef = value ? Number(value) : null;
     setTaskRef(nextRef);
+    setParallelTaskRefs((refs) => refs.filter((ref) => ref !== nextRef));
     const linkedTask = getLinkedTask(tasks, nextRef);
     if (linkedTask) {
       setCategory(getTaskCategory(linkedTask));
     } else if (!nextRef) {
       setCategory('other');
+      setParallelTaskRefs([]);
     }
+  };
+
+  const toggleParallelTaskRef = (ref: number) => {
+    setParallelTaskRefs((refs) => (
+      refs.includes(ref) ? refs.filter((item) => item !== ref) : [...refs, ref]
+    ));
+  };
+
+  const buildTaskRefs = () => {
+    const refs = [taskRef, ...parallelTaskRefs].filter((ref): ref is number => typeof ref === 'number');
+    return [...new Set(refs)];
   };
 
   // Auto calculation suggestion helper
@@ -91,6 +112,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     }
     setContent('');
     setTaskRef(null);
+    setParallelTaskRefs([]);
     setCategory('other');
     setEditingPlannedId(null);
     setShowPlannedForm(true);
@@ -112,6 +134,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     }
     setContent('');
     setTaskRef(null);
+    setParallelTaskRefs([]);
     setCategory('other');
     setReason('');
     setEditingActualId(null);
@@ -123,6 +146,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     const duration = calculateTimeDiffMinutes(startTime, endTime);
     const linkedTask = getLinkedTask(tasks, taskRef);
     const trimmedContent = content.trim();
+    const selectedTaskRefs = buildTaskRefs();
 
     if (!linkedTask && !trimmedContent) {
       alert('请先关联一个待办事项，或填写这段计划要做什么。');
@@ -134,6 +158,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       startTime,
       endTime,
       taskRef: taskRef ? Number(taskRef) : null,
+      taskRefs: selectedTaskRefs.length > 0 ? selectedTaskRefs : undefined,
       content: trimmedContent,
       category: linkedTask ? getTaskCategory(linkedTask) : category,
       estimatedMinutes: duration,
@@ -158,6 +183,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     const duration = calculateTimeDiffMinutes(startTime, endTime);
     const linkedTask = getLinkedTask(tasks, taskRef);
     const trimmedContent = content.trim();
+    const selectedTaskRefs = buildTaskRefs();
 
     if (!linkedTask && !trimmedContent) {
       alert('请先关联一个待办事项，或填写这段真实经过。');
@@ -169,6 +195,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       startTime,
       endTime,
       taskRef: taskRef ? Number(taskRef) : null,
+      taskRefs: selectedTaskRefs.length > 0 ? selectedTaskRefs : undefined,
       content: trimmedContent,
       category: linkedTask ? getTaskCategory(linkedTask) : category,
       actualMinutes: duration,
@@ -195,6 +222,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       startTime: pBlock.startTime,
       endTime: pBlock.endTime,
       taskRef: pBlock.taskRef,
+      taskRefs: pBlock.taskRefs,
       content: pBlock.content,
       category: getBlockCategory(tasks, pBlock),
       actualMinutes: pBlock.estimatedMinutes,
@@ -212,6 +240,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         startTime: p.startTime,
         endTime: p.endTime,
         taskRef: p.taskRef,
+        taskRefs: p.taskRefs,
         content: p.content,
         category: getBlockCategory(tasks, p),
         actualMinutes: p.estimatedMinutes,
@@ -227,7 +256,8 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     setStartTime(block.startTime);
     setEndTime(block.endTime);
     setContent(block.content);
-    setTaskRef(block.taskRef);
+    setTaskRef(getPrimaryTaskRef(block));
+    setParallelTaskRefs(getSecondaryTaskRefs(block));
     setCategory(getBlockCategory(tasks, block));
     setShowPlannedForm(true);
   };
@@ -237,7 +267,8 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     setStartTime(block.startTime);
     setEndTime(block.endTime);
     setContent(block.content);
-    setTaskRef(block.taskRef);
+    setTaskRef(getPrimaryTaskRef(block));
+    setParallelTaskRefs(getSecondaryTaskRefs(block));
     setCategory(getBlockCategory(tasks, block));
     setReason(block.reason || '');
     setShowActualForm(true);
@@ -256,9 +287,14 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   const getDeviationStatsForActual = (act: ActualBlock) => {
     // Find matching planned block: same taskRef OR substantial text overlap
     const matchedPlan = plannedBlocks.find(
-      (p) => 
-        (p.taskRef && act.taskRef && p.taskRef === act.taskRef) ||
+      (p) => {
+        const planRefs = getBlockTaskRefs(p);
+        const actualRefs = getBlockTaskRefs(act);
+        return (
+          (planRefs.length > 0 && actualRefs.some((ref) => planRefs.includes(ref))) ||
         (p.content.toLowerCase() === act.content.toLowerCase())
+        );
+      },
     );
 
     if (!matchedPlan) {
@@ -318,9 +354,13 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             plannedBlocks.map((plan) => {
               const categoryValue = getBlockCategory(tasks, plan);
               const catConfig = getCategoryConfig(categoryValue);
-              const linkedTask = getLinkedTask(tasks, plan.taskRef);
-              const title = linkedTask?.text.trim() || plan.content.trim() || `已删除事项 ${plan.taskRef ?? ''}`.trim();
-              const note = linkedTask && plan.content.trim() ? plan.content.trim() : '';
+              const primaryTaskRef = getPrimaryTaskRef(plan);
+              const secondaryTaskRefs = getSecondaryTaskRefs(plan);
+              const linkedTask = getLinkedTask(tasks, primaryTaskRef);
+              const linkedTaskTitle = linkedTask?.text.trim() ?? '';
+              const planContent = plan.content.trim();
+              const title = linkedTaskTitle || planContent || `已删除事项 ${primaryTaskRef ?? ''}`.trim();
+              const note = linkedTaskTitle && planContent && planContent !== linkedTaskTitle ? planContent : '';
               return (
                 <div
                   key={plan.id}
@@ -337,9 +377,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                       <span className="text-xs font-sans text-stone-500">
                         ({formatMinutes(plan.estimatedMinutes)})
                       </span>
-                      {plan.taskRef && (
+                      {primaryTaskRef && (
                         <span className="font-serif text-amber-800 bg-[#FAF1E3] border border-[#E8DCC4] py-0.5 px-2 rounded-full text-xs font-semibold flex items-center gap-1">
-                          编号 {getTaskSymbol(plan.taskRef)}
+                          主 {getTaskSymbol(primaryTaskRef)}
                         </span>
                       )}
                       <span className={`text-[10px] font-sans px-1.5 py-0.5 rounded-sm border ${catConfig.bg} ${catConfig.color} ${catConfig.borderColor}`}>
@@ -351,15 +391,22 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                       {title}
                     </p>
 
-                    {plan.taskRef && (
-                      <p className="text-xs text-[#8B5A2B] bg-amber-50/50 px-2 py-0.5 rounded-md mt-1 italic inline-block border border-[#FAEDE2] truncate max-w-full">
-                        关联: {getTaskText(plan.taskRef)}
-                      </p>
-                    )}
                     {note && (
-                      <p className="text-xs text-stone-500 bg-white/60 px-2 py-0.5 rounded-md mt-1 inline-block border border-[#FAEDE2] max-w-full break-words">
-                        备注: {note}
-                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-stone-500 bg-white/70 px-2 py-0.5 rounded-md border border-[#FAEDE2] max-w-full break-words">
+                          备注: {note}
+                        </span>
+                      </div>
+                    )}
+                    {secondaryTaskRefs.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-serif text-amber-800">并行:</span>
+                        {secondaryTaskRefs.map((ref) => (
+                          <span key={ref} className="text-[11px] text-[#8B5A2B] bg-amber-50/60 px-2 py-0.5 rounded-md border border-[#FAEDE2] max-w-full truncate">
+                            {getTaskSymbol(ref)} {getTaskLabel(ref)}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
 
@@ -455,9 +502,13 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             actualBlocks.map((act) => {
               const categoryValue = getBlockCategory(tasks, act);
               const catConfig = getCategoryConfig(categoryValue);
-              const linkedTask = getLinkedTask(tasks, act.taskRef);
-              const title = linkedTask?.text.trim() || act.content.trim() || `已删除事项 ${act.taskRef ?? ''}`.trim();
-              const note = linkedTask && act.content.trim() ? act.content.trim() : '';
+              const primaryTaskRef = getPrimaryTaskRef(act);
+              const secondaryTaskRefs = getSecondaryTaskRefs(act);
+              const linkedTask = getLinkedTask(tasks, primaryTaskRef);
+              const linkedTaskTitle = linkedTask?.text.trim() ?? '';
+              const actualContent = act.content.trim();
+              const title = linkedTaskTitle || actualContent || `已删除事项 ${primaryTaskRef ?? ''}`.trim();
+              const note = linkedTaskTitle && actualContent && actualContent !== linkedTaskTitle ? actualContent : '';
               const stats = getDeviationStatsForActual(act);
 
               return (
@@ -479,9 +530,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                           ({formatMinutes(act.actualMinutes)})
                         </span>
                         
-                        {act.taskRef && (
+                        {primaryTaskRef && (
                           <span className="font-serif text-emerald-800 bg-[#E1F2E4] border border-[#C5E5CC] py-0.5 px-2 rounded-full text-xs font-semibold">
-                            编号 {getTaskSymbol(act.taskRef)}
+                            主 {getTaskSymbol(primaryTaskRef)}
                           </span>
                         )}
                         <span className={`text-[10px] font-sans px-1.5 py-0.5 rounded-sm border ${catConfig.bg} ${catConfig.color} ${catConfig.borderColor}`}>
@@ -499,7 +550,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                               ? 'text-amber-800 bg-amber-50 border-amber-200' 
                               : 'text-emerald-700 bg-emerald-50 border-emerald-200'
                           }`}>
-                            Δ {stats.delta > 0 ? `超时 +${stats.delta}` : `缩短 -${Math.abs(stats.delta)}`}分
+                            Δ {stats.delta > 0 ? '超时' : '缩短'} {formatSignedMinutes(stats.delta)}
                           </span>
                         ) : (
                           <span className="text-xs font-sans font-medium text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-sm border border-teal-100 flex items-center gap-0.5">
@@ -516,6 +567,17 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                         <p className="text-xs text-[#4E765D] bg-white/60 px-2 py-0.5 rounded-md mt-1 inline-block border border-emerald-100 max-w-full break-words">
                           实际补充: {note}
                         </p>
+                      )}
+
+                      {secondaryTaskRefs.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-serif text-emerald-800">并行:</span>
+                          {secondaryTaskRefs.map((ref) => (
+                            <span key={ref} className="text-[11px] text-emerald-800 bg-emerald-50/70 px-2 py-0.5 rounded-md border border-emerald-100 max-w-full truncate">
+                              {getTaskSymbol(ref)} {getTaskLabel(ref)}
+                            </span>
+                          ))}
+                        </div>
                       )}
 
                       {act.reason && (
@@ -602,7 +664,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-[#8B5A2B] mb-1">关联清单任务</label>
+                  <label className="block text-xs font-medium text-[#8B5A2B] mb-1">主关联任务</label>
                   <select
                     value={taskRef || ''}
                     onChange={(e) => handleTaskRefChange(e.target.value)}
@@ -642,6 +704,27 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   )}
                 </div>
               </div>
+
+              {taskRef && filledTasks.length > 1 && (
+                <div>
+                  <label className="block text-xs font-medium text-[#8B5A2B] mb-1">并行/伴随任务（可选）</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-[#EADFC9] bg-white/60 p-2 max-h-28 overflow-y-auto">
+                    {filledTasks.filter((task) => task.id !== taskRef).map((task) => (
+                      <label key={task.id} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-stone-700 hover:bg-amber-50">
+                        <input
+                          type="checkbox"
+                          checked={parallelTaskRefs.includes(task.id)}
+                          onChange={() => toggleParallelTaskRef(task.id)}
+                          className="h-3.5 w-3.5 accent-[#8B5A2B]"
+                        />
+                        <span className="font-serif text-[#8B5A2B]">{getTaskSymbol(task.id)}</span>
+                        <span className="min-w-0 truncate">{task.text}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[10px] text-stone-400">统计仍按主任务归类，并行任务用于复盘时还原真实工作状态。</p>
+                </div>
+              )}
 
               <div className="pt-2 flex justify-end gap-2 border-t border-[#EADFC9]">
                 <button
@@ -709,7 +792,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-emerald-800 mb-1">关联清单任务</label>
+                  <label className="block text-xs font-medium text-emerald-800 mb-1">主关联任务</label>
                   <select
                     value={taskRef || ''}
                     onChange={(e) => handleTaskRefChange(e.target.value)}
@@ -749,6 +832,27 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                   )}
                 </div>
               </div>
+
+              {taskRef && filledTasks.length > 1 && (
+                <div>
+                  <label className="block text-xs font-medium text-emerald-800 mb-1">并行/伴随任务（可选）</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-emerald-100 bg-white/60 p-2 max-h-28 overflow-y-auto">
+                    {filledTasks.filter((task) => task.id !== taskRef).map((task) => (
+                      <label key={task.id} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-stone-700 hover:bg-emerald-50">
+                        <input
+                          type="checkbox"
+                          checked={parallelTaskRefs.includes(task.id)}
+                          onChange={() => toggleParallelTaskRef(task.id)}
+                          className="h-3.5 w-3.5 accent-emerald-700"
+                        />
+                        <span className="font-serif text-emerald-800">{getTaskSymbol(task.id)}</span>
+                        <span className="min-w-0 truncate">{task.text}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[10px] text-stone-400">统计仍按主任务归类，并行任务用于复盘时还原真实工作状态。</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-amber-800 mb-1 flex items-center gap-1">

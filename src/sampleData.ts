@@ -32,6 +32,11 @@ export function formatMinutes(minutes: number): string {
   return `${mins}分钟`;
 }
 
+export function formatSignedMinutes(minutes: number): string {
+  if (minutes === 0) return formatMinutes(0);
+  return `${minutes > 0 ? '+' : '-'}${formatMinutes(Math.abs(minutes))}`;
+}
+
 export function calculateTimeDiffMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);

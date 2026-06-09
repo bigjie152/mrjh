@@ -36,11 +36,25 @@ export function getLinkedTask(tasks: TaskItem[], taskRef: number | null) {
   return tasks.find((task) => task.id === taskRef) ?? null;
 }
 
-export function getBlockCategory<T extends { taskRef: number | null; category: CategoryType }>(
+export function getBlockTaskRefs<T extends { taskRef: number | null; taskRefs?: number[] }>(block: T) {
+  const refs = [block.taskRef, ...(block.taskRefs ?? [])].filter((ref): ref is number => typeof ref === 'number');
+  return [...new Set(refs)];
+}
+
+export function getPrimaryTaskRef<T extends { taskRef: number | null; taskRefs?: number[] }>(block: T) {
+  return block.taskRef ?? block.taskRefs?.[0] ?? null;
+}
+
+export function getSecondaryTaskRefs<T extends { taskRef: number | null; taskRefs?: number[] }>(block: T) {
+  const primaryRef = getPrimaryTaskRef(block);
+  return getBlockTaskRefs(block).filter((ref) => ref !== primaryRef);
+}
+
+export function getBlockCategory<T extends { taskRef: number | null; taskRefs?: number[]; category: CategoryType }>(
   tasks: TaskItem[],
   block: T,
 ): CategoryType {
-  const linkedTask = getLinkedTask(tasks, block.taskRef);
+  const linkedTask = getLinkedTask(tasks, getPrimaryTaskRef(block));
   return linkedTask?.category ?? block.category ?? 'other';
 }
 

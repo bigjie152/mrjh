@@ -13,6 +13,7 @@ export interface PlannedBlock {
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
   taskRef: number | null;
+  taskRefs?: number[];
   content: string;
   category: CategoryType;
   estimatedMinutes: number;
@@ -23,6 +24,7 @@ export interface ActualBlock {
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
   taskRef: number | null;
+  taskRefs?: number[];
   content: string;
   category: CategoryType;
   actualMinutes: number;
@@ -42,6 +44,8 @@ export interface DailyPlannerEntry {
   plannedBlocks: PlannedBlock[];
   actualBlocks: ActualBlock[];
   review: DailyReview;
+  plannedAt?: string;
+  reviewedAt?: string;
 }
 
 export interface AuthUser {

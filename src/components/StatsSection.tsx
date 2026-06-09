@@ -1,7 +1,7 @@
 import React from 'react';
 import { DailyPlannerEntry, CATEGORIES } from '../types';
 import { Award, CheckSquare, Clock, Flame, BarChart3, Activity, ShieldAlert } from 'lucide-react';
-import { formatMinutes, getLocalDateString, shiftDateString } from '../sampleData';
+import { formatMinutes, formatSignedMinutes, getLocalDateString, shiftDateString } from '../sampleData';
 import { getBlockCategory } from '../plannerUtils';
 
 interface StatsSectionProps {
@@ -315,9 +315,9 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
         <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-6 shadow-sm">
           <h4 className="font-serif text-base font-bold text-[#5c4033] flex items-center gap-2 mb-2">
             <BarChart3 className="w-4 h-4 text-emerald-600" />
-            各维度总时间收支对比 (分钟)
+            各维度总时间收支对比
           </h4>
-          <p className="text-xs text-stone-400 font-sans mb-6">展示在工作、学习、运功和生活等分类下的投入偏差</p>
+          <p className="text-xs text-stone-400 font-sans mb-6">展示在工作、学习、运动和生活等分类下的投入偏差</p>
 
           <div className="w-full h-56 sm:h-64 relative bg-stone-50/50 border border-stone-200/55 rounded-xl p-2 sm:p-3">
             {categoryTimes.length === 0 ? (
@@ -339,9 +339,9 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
                           {item.name}
                         </span>
                         <span className="text-[10px] font-mono text-stone-500">
-                          预计: {item.planned}m | 实际: <span className="font-bold text-stone-800">{item.actual}m</span> 
+                          预计: {formatMinutes(item.planned)} | 实际: <span className="font-bold text-stone-800">{formatMinutes(item.actual)}</span> 
                           <span className={`ml-1 font-bold ${item.diff > 0 ? 'text-amber-700' : item.diff < 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
-                            ({item.diff >= 0 ? '+' : ''}{item.diff}m)
+                            ({formatSignedMinutes(item.diff)})
                           </span>
                         </span>
                       </div>

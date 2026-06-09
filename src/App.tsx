@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AuthUser, DailyPlannerEntry, TaskItem } from './types';
+import { ActualBlock, AuthUser, DailyPlannerEntry, PlannedBlock, TaskItem } from './types';
 import { getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
 import { AuthScreen } from './components/AuthScreen';
 import { TaskInspector } from './components/TaskInspector';
@@ -7,7 +7,7 @@ import { TimelineSection } from './components/TimelineSection';
 import { ReviewSection } from './components/ReviewSection';
 import { HistorySection } from './components/HistorySection';
 import { StatsSection } from './components/StatsSection';
-import { Calendar, Download, BarChart2, BookOpen, Copy, Archive, LogOut, UserCircle } from 'lucide-react';
+import { Archive, BarChart2, BookOpen, Calendar, CalendarPlus, ClipboardCheck, Copy, Download, LogOut, UserCircle } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
 const STORAGE_KEY = 'daily_planner_entries_v1';
@@ -37,6 +37,18 @@ function writeStoredEntries(userId: string, entries: DailyPlannerEntry[]) {
   }
 }
 
+function normalizeBlockTaskRefs<T extends PlannedBlock | ActualBlock>(block: T, retainedTaskIds: Set<number>): T {
+  const refs = [block.taskRef, ...(block.taskRefs ?? [])]
+    .filter((ref): ref is number => typeof ref === 'number' && retainedTaskIds.has(ref));
+  const uniqueRefs = [...new Set(refs)];
+
+  return {
+    ...block,
+    taskRef: uniqueRefs[0] ?? null,
+    taskRefs: uniqueRefs.length > 0 ? uniqueRefs : undefined,
+  };
+}
+
 function normalizeEntry(entry: DailyPlannerEntry): DailyPlannerEntry {
   const retainedTaskIds = new Set(
     entry.tasks
@@ -49,17 +61,28 @@ function normalizeEntry(entry: DailyPlannerEntry): DailyPlannerEntry {
     tasks: entry.tasks
       .filter((task) => retainedTaskIds.has(task.id))
       .map((task) => ({ ...task, category: task.category ?? 'work' })),
-    plannedBlocks: entry.plannedBlocks.map((block) => (
-      block.taskRef && !retainedTaskIds.has(block.taskRef) ? { ...block, taskRef: null } : block
-    )),
-    actualBlocks: entry.actualBlocks.map((block) => (
-      block.taskRef && !retainedTaskIds.has(block.taskRef) ? { ...block, taskRef: null } : block
-    )),
+    plannedBlocks: entry.plannedBlocks.map((block) => normalizeBlockTaskRefs(block, retainedTaskIds)),
+    actualBlocks: entry.actualBlocks.map((block) => normalizeBlockTaskRefs(block, retainedTaskIds)),
   };
 }
 
 function normalizeEntries(entries: DailyPlannerEntry[]) {
   return entries.map(normalizeEntry);
+}
+
+function hasReviewText(entry: DailyPlannerEntry) {
+  return Boolean(
+    entry.review.biggestDeviation.trim() ||
+    entry.review.improvement.trim() ||
+    entry.review.generalNotes.trim(),
+  );
+}
+
+function getEntryStatus(entry: DailyPlannerEntry) {
+  if (hasReviewText(entry) || entry.reviewedAt) return '已复盘';
+  if (entry.actualBlocks.length > 0) return '执行中';
+  if (entry.plannedBlocks.length > 0 || entry.tasks.some((task) => task.text.trim().length > 0)) return '已做计划';
+  return '未开始';
 }
 
 export default function App() {
@@ -291,6 +314,20 @@ export default function App() {
     };
     return blank;
   })();
+  const todayString = getLocalDateString();
+  const tomorrowString = shiftDateString(todayString, 1);
+  const entryStatus = getEntryStatus(currentEntry);
+  const isEveningPlanningTime = new Date().getHours() >= 20;
+
+  const handleSelectTodayReview = () => {
+    setCurrentDate(todayString);
+    setActiveTab('today');
+  };
+
+  const handleSelectTomorrowPlan = () => {
+    setCurrentDate(tomorrowString);
+    setActiveTab('today');
+  };
 
   // 4. Update helper for active entry
   const updateCurrentEntry = (updatedFields: Partial<DailyPlannerEntry>) => {
@@ -314,25 +351,22 @@ export default function App() {
         .map((task) => [task.id, task]),
     );
 
-    const plannedBlocks = currentEntry.plannedBlocks.map((block) => {
-      if (!block.taskRef || !removedTasks.has(block.taskRef)) return block;
-      const removedTask = removedTasks.get(block.taskRef);
-      return {
-        ...block,
-        taskRef: null,
-        content: block.content.trim() || removedTask?.text || '原关联事项已删除',
-      };
-    });
+    const normalizeChangedBlock = <T extends PlannedBlock | ActualBlock>(block: T): T => {
+      const refs = [block.taskRef, ...(block.taskRefs ?? [])]
+        .filter((ref): ref is number => typeof ref === 'number' && remainingIds.has(ref));
+      const uniqueRefs = [...new Set(refs)];
+      const removedPrimaryTask = block.taskRef ? removedTasks.get(block.taskRef) : null;
 
-    const actualBlocks = currentEntry.actualBlocks.map((block) => {
-      if (!block.taskRef || !removedTasks.has(block.taskRef)) return block;
-      const removedTask = removedTasks.get(block.taskRef);
       return {
         ...block,
-        taskRef: null,
-        content: block.content.trim() || removedTask?.text || '原关联事项已删除',
+        taskRef: uniqueRefs[0] ?? null,
+        taskRefs: uniqueRefs.length > 0 ? uniqueRefs : undefined,
+        content: removedPrimaryTask ? block.content.trim() || removedPrimaryTask.text || '原关联事项已删除' : block.content,
       };
-    });
+    };
+
+    const plannedBlocks = currentEntry.plannedBlocks.map(normalizeChangedBlock);
+    const actualBlocks = currentEntry.actualBlocks.map(normalizeChangedBlock);
 
     updateCurrentEntry({ tasks: updatedTasks, plannedBlocks, actualBlocks });
   };
@@ -349,6 +383,7 @@ export default function App() {
         id: task.id,
         text: task.text,
         completed: false, // reset for today
+        category: task.category,
         notes: task.notes ? `昨日沿用: ${task.notes}` : undefined,
       }));
 
@@ -377,6 +412,8 @@ export default function App() {
       plannedBlocks: freshPlanned,
       actualBlocks: [], // clear actuals to let user fill in fresh
       review: { biggestDeviation: '', improvement: '', generalNotes: '' },
+      plannedAt: freshPlanned.length > 0 ? new Date().toISOString() : undefined,
+      reviewedAt: undefined,
     });
 
     setActiveTab('today');
@@ -566,22 +603,62 @@ export default function App() {
             {/* Today Controller Toolbar */}
             <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
               <div className="grid grid-cols-1 sm:flex sm:items-center sm:flex-wrap gap-3 sm:gap-4">
-                <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-[#FAF1E3] border border-[#E8DCC4] py-2 sm:py-1 px-3 rounded-xl">
-                  <Calendar className="w-4 h-4 text-[#8B5A2B]" />
-                  <input
-                    type="date"
-                    value={currentDate}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        setCurrentDate(e.target.value);
-                      }
-                    }}
-                    className="font-serif font-black text-[#5c4033] bg-transparent focus:outline-hidden text-sm"
-                  />
-                  <span className="text-stone-400 text-xs">|</span>
-                  <span className="font-serif text-xs font-semibold text-[#8B5A2B]">
-                    {currentEntry.weekDay}
-                  </span>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-[#FAF1E3] border border-[#E8DCC4] py-2 sm:py-1 px-3 rounded-xl">
+                    <Calendar className="w-4 h-4 text-[#8B5A2B]" />
+                    <span className="text-[11px] font-serif font-bold text-[#8B5A2B]">计划日</span>
+                    <input
+                      type="date"
+                      value={currentDate}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setCurrentDate(e.target.value);
+                        }
+                      }}
+                      className="font-serif font-black text-[#5c4033] bg-transparent focus:outline-hidden text-sm"
+                    />
+                    <span className="text-stone-400 text-xs">|</span>
+                    <span className="font-serif text-xs font-semibold text-[#8B5A2B]">
+                      {currentEntry.weekDay}
+                    </span>
+                    <span className="ml-1 rounded-full border border-[#E8DCC4] bg-white/65 px-2 py-0.5 text-[10px] font-serif font-bold text-[#8B5A2B]">
+                      {entryStatus}
+                    </span>
+                  </div>
+                  {isEveningPlanningTime && currentDate === todayString && (
+                    <span className="text-[10px] font-serif text-amber-800">
+                      现在适合切到“明天计划”，提前把选择处理掉。
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectTodayReview}
+                    className={`cursor-pointer flex items-center justify-center gap-1 border transition-colors px-3 py-2 sm:py-1.5 rounded-xl text-xs font-sans font-medium ${
+                      currentDate === todayString
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                    }`}
+                    title="切回今天，晚上填写实际完成与复盘"
+                  >
+                    <ClipboardCheck className="w-3.5 h-3.5" />
+                    今天复盘
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectTomorrowPlan}
+                    className={`cursor-pointer flex items-center justify-center gap-1 border transition-colors px-3 py-2 sm:py-1.5 rounded-xl text-xs font-sans font-medium ${
+                      currentDate === tomorrowString
+                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                    }`}
+                    title="晚上提前为明天安排计划"
+                  >
+                    <CalendarPlus className="w-3.5 h-3.5" />
+                    明天计划
+                  </button>
                 </div>
 
                 <button
@@ -649,8 +726,13 @@ export default function App() {
                 tasks={currentEntry.tasks}
                 plannedBlocks={currentEntry.plannedBlocks}
                 actualBlocks={currentEntry.actualBlocks}
-                onUpdatePlanned={(p) => updateCurrentEntry({ plannedBlocks: p })}
-                onUpdateActual={(a) => updateCurrentEntry({ actualBlocks: a })}
+                onUpdatePlanned={(p) => updateCurrentEntry({
+                  plannedBlocks: p,
+                  plannedAt: p.length > 0 ? currentEntry.plannedAt ?? new Date().toISOString() : undefined,
+                })}
+                onUpdateActual={(a) => updateCurrentEntry({
+                  actualBlocks: a,
+                })}
               />
 
               {/* Step 3: Summarize / Reviews */}
@@ -659,7 +741,12 @@ export default function App() {
                 tasks={currentEntry.tasks}
                 plannedBlocks={currentEntry.plannedBlocks}
                 actualBlocks={currentEntry.actualBlocks}
-                onChange={(review) => updateCurrentEntry({ review })}
+                onChange={(review) => updateCurrentEntry({
+                  review,
+                  reviewedAt: review.biggestDeviation.trim() || review.improvement.trim() || review.generalNotes.trim()
+                    ? currentEntry.reviewedAt ?? new Date().toISOString()
+                    : undefined,
+                })}
               />
             </div>
           </div>

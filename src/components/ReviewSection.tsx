@@ -1,7 +1,7 @@
 import React from 'react';
 import { DailyReview, PlannedBlock, ActualBlock, CATEGORIES } from '../types';
 import { Award, TrendingUp } from 'lucide-react';
-import { formatMinutes } from '../sampleData';
+import { formatMinutes, formatSignedMinutes } from '../sampleData';
 import { getBlockCategory } from '../plannerUtils';
 import { TaskItem } from '../types';
 
@@ -83,7 +83,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
           </div>
           <div className="text-xs text-stone-500 border-t border-stone-200/50 pt-2 font-mono">
             差额: <span className={totalActualMinutes - totalPlannedMinutes >= 0 ? 'text-amber-800' : 'text-emerald-700'}>
-              {totalActualMinutes - totalPlannedMinutes >= 0 ? '+' : ''}{totalActualMinutes - totalPlannedMinutes} 分钟
+              {formatSignedMinutes(totalActualMinutes - totalPlannedMinutes)}
             </span>
           </div>
         </div>
@@ -107,7 +107,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
 
         {/* Metric Card 3: Categorized Contrast Details */}
         <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3 flex flex-col justify-between max-h-[180px] md:max-h-[140px] overflow-y-auto">
-          <span className="text-xs font-serif font-bold text-[#8B5A2B] mb-1.5 block">分类时间偏离对照 (分)</span>
+          <span className="text-xs font-serif font-bold text-[#8B5A2B] mb-1.5 block">分类时间偏离对照</span>
           <div className="space-y-1">
             {breakdownData.map((d) => {
               if (d.planned === 0 && d.actual === 0) return null;
@@ -118,11 +118,11 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
                     {d.label}
                   </span>
                   <div className="font-mono">
-                    <span className="text-stone-400">{d.planned}m</span>
+                    <span className="text-stone-400">{formatMinutes(d.planned)}</span>
                     <span className="mx-1 text-stone-300">→</span>
-                    <span className="font-semibold text-stone-700">{d.actual}m</span>
+                    <span className="font-semibold text-stone-700">{formatMinutes(d.actual)}</span>
                     <span className={`ml-1 px-1 rounded-sm font-bold ${d.diff > 0 ? 'text-amber-700' : d.diff < 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
-                      ({d.diff >= 0 ? '+' : ''}{d.diff}m)
+                      ({formatSignedMinutes(d.diff)})
                     </span>
                   </div>
                 </div>
