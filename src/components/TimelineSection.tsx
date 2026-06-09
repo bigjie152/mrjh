@@ -29,6 +29,31 @@ function getCategoryAccent(category: CategoryType) {
   return '#64748b';
 }
 
+function getClockMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return hours * 60 + minutes;
+}
+
+function getTimeRange(block: { startTime: string; endTime: string }) {
+  const start = getClockMinutes(block.startTime);
+  const rawEnd = getClockMinutes(block.endTime);
+  const end = rawEnd >= start ? rawEnd : rawEnd + 24 * 60;
+  return { start, end };
+}
+
+function getTimeOverlap(a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }) {
+  const rangeA = getTimeRange(a);
+  const rangeB = getTimeRange(b);
+  return Math.max(0, Math.min(rangeA.end, rangeB.end) - Math.max(rangeA.start, rangeB.start));
+}
+
+function getTimeDistance(a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }) {
+  const rangeA = getTimeRange(a);
+  const rangeB = getTimeRange(b);
+  return Math.abs(rangeA.start - rangeB.start) + Math.abs(rangeA.end - rangeB.end);
+}
+
 export const TimelineSection: React.FC<TimelineSectionProps> = ({
   tasks,
   plannedBlocks,
@@ -282,20 +307,32 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
     onUpdateActual(actualBlocks.filter((b) => b.id !== id));
   };
 
-  // Helper to match actual blocks to planned blocks and calculate deviations
-  // Simple heuristic: match by text or taskRef
+  // Helper to match actual blocks to planned blocks and calculate deviations.
+  // Same task can appear multiple times in one day, so prefer the plan with the largest time overlap.
   const getDeviationStatsForActual = (act: ActualBlock) => {
-    // Find matching planned block: same taskRef OR substantial text overlap
-    const matchedPlan = plannedBlocks.find(
-      (p) => {
-        const planRefs = getBlockTaskRefs(p);
-        const actualRefs = getBlockTaskRefs(act);
-        return (
-          (planRefs.length > 0 && actualRefs.some((ref) => planRefs.includes(ref))) ||
-        (p.content.toLowerCase() === act.content.toLowerCase())
-        );
-      },
-    );
+    const actualRefs = getBlockTaskRefs(act);
+    const actualContent = act.content.trim().toLowerCase();
+    const matchedPlan = plannedBlocks
+      .map((plan) => {
+        const planRefs = getBlockTaskRefs(plan);
+        const hasSharedTask = planRefs.length > 0 && actualRefs.some((ref) => planRefs.includes(ref));
+        const hasSameContent = Boolean(actualContent && plan.content.trim().toLowerCase() === actualContent);
+
+        return {
+          plan,
+          hasSharedTask,
+          hasSameContent,
+          overlap: getTimeOverlap(plan, act),
+          distance: getTimeDistance(plan, act),
+        };
+      })
+      .filter((item) => item.hasSharedTask || item.hasSameContent)
+      .sort((a, b) => {
+        if (a.hasSharedTask !== b.hasSharedTask) return a.hasSharedTask ? -1 : 1;
+        if (a.overlap !== b.overlap) return b.overlap - a.overlap;
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return Math.abs(a.plan.estimatedMinutes - act.actualMinutes) - Math.abs(b.plan.estimatedMinutes - act.actualMinutes);
+      })[0]?.plan;
 
     if (!matchedPlan) {
       return { type: 'unplanned' as const, delta: act.actualMinutes };
