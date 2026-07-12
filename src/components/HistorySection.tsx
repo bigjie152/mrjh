@@ -18,6 +18,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
   onDeleteEntry,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingDeleteDate, setPendingDeleteDate] = useState<string | null>(null);
 
   // Sort history newest first
   const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date));
@@ -211,11 +212,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(`确定删除 ${entry.date} 的记录吗？此操作不可逆。`)) {
-                        onDeleteEntry(entry.date);
-                      }
-                    }}
+                    onClick={() => setPendingDeleteDate(entry.date)}
                     className="cursor-pointer p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors"
                     title="彻底删除此页"
                   >
@@ -225,6 +222,33 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {pendingDeleteDate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/45 p-4 backdrop-blur-xs">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="delete-entry-title" className="w-full max-w-sm rounded-xl border-2 border-[#D9C392] bg-[#FFFDF9] p-6 text-center shadow-2xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <h3 id="delete-entry-title" className="mt-4 font-serif text-lg font-bold text-[#5c4033]">删除这一天的记录？</h3>
+            <p className="mt-3 font-serif text-xs leading-6 text-stone-600">
+              即将删除 <strong>{pendingDeleteDate}</strong> 的待办、计划、实际完成和复盘笔记。删除后无法恢复。
+            </p>
+            <div className="mt-5 flex justify-center gap-2 border-t border-[#EADFC9] pt-4">
+              <button type="button" onClick={() => setPendingDeleteDate(null)} className="rounded-lg px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100">取消</button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteEntry(pendingDeleteDate);
+                  setPendingDeleteDate(null);
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700"
+              >
+                <Trash2 className="h-3.5 w-3.5" />确认删除
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

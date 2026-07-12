@@ -4,10 +4,10 @@ import { getWeekDayName, getLocalDateString, shiftDateString } from './sampleDat
 import { AuthScreen } from './components/AuthScreen';
 import { TaskInspector } from './components/TaskInspector';
 import { TimelineSection } from './components/TimelineSection';
-import { ReviewSection } from './components/ReviewSection';
+import { CategoryComparisonSection, ReviewSection } from './components/ReviewSection';
 import { HistorySection } from './components/HistorySection';
 import { StatsSection } from './components/StatsSection';
-import { Archive, BarChart2, BookOpen, Calendar, CalendarPlus, ClipboardCheck, Copy, Download, LogOut, UserCircle } from 'lucide-react';
+import { Archive, BarChart2, BookOpen, Calendar, CalendarPlus, ClipboardCheck, Copy, Download, Edit3, LogOut, UserCircle } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
 const STORAGE_KEY = 'daily_planner_entries_v1';
@@ -93,6 +93,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'stats'>('today');
   const [isExporting, setIsExporting] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
+  const [mobileTodayView, setMobileTodayView] = useState<'review' | 'plan'>('review');
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncRef = useRef<DailyPlannerEntry[] | null>(null);
 
@@ -322,11 +323,13 @@ export default function App() {
   const handleSelectTodayReview = () => {
     setCurrentDate(todayString);
     setActiveTab('today');
+    setMobileTodayView('review');
   };
 
   const handleSelectTomorrowPlan = () => {
     setCurrentDate(tomorrowString);
     setActiveTab('today');
+    setMobileTodayView('plan');
   };
 
   // 4. Update helper for active entry
@@ -371,24 +374,31 @@ export default function App() {
     updateCurrentEntry({ tasks: updatedTasks, plannedBlocks, actualBlocks });
   };
 
-  // 5. Actions: Copy Yesterday's Tasks
+  // 5. Actions: Copy yesterday's tasks and planned blocks as a fresh template.
   const handleCopyYesterdayTasks = () => {
     const yesterdayStr = shiftDateString(currentDate, -1);
 
     const yesterdayEntry = entries.find((e) => e.date === yesterdayStr);
     
     if (yesterdayEntry) {
-      // Clone only the texts of unfinished tasks, or all tasks resetting their completed state
       const clonedTasks = yesterdayEntry.tasks.map((task) => ({
         id: task.id,
         text: task.text,
         completed: false, // reset for today
         category: task.category,
-        notes: task.notes ? `昨日沿用: ${task.notes}` : undefined,
+        notes: task.notes,
+      }));
+      const clonedPlannedBlocks = yesterdayEntry.plannedBlocks.map((block) => ({
+        ...block,
+        id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       }));
 
-      updateCurrentEntry({ tasks: clonedTasks });
-      alert(`已成功复制 ${yesterdayStr} 的清单事项！已重置待办勾选状态。`);
+      updateCurrentEntry({
+        tasks: clonedTasks,
+        plannedBlocks: clonedPlannedBlocks,
+        plannedAt: clonedPlannedBlocks.length > 0 ? new Date().toISOString() : undefined,
+      });
+      alert(`已复制 ${yesterdayStr} 的待办事项和全部计划时间段，并重置待办完成状态。`);
     } else {
       alert(`未找到昨天 (${yesterdayStr}) 的记录。请先在历史日志中创建它，或直接输入待办事项。`);
     }
@@ -483,7 +493,7 @@ export default function App() {
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F4F1EA] text-[#4A3B32] font-sans antialiased flex flex-col justify-between selection:bg-[#E2D5BA] selection:text-[#5c4033]" id="master-root">
       {/* GLOBAL BANNER */}
       <header className="bg-[#FAF8F5] border-b border-[#EADFC9] sticky top-0 z-40 shadow-2xs">
-        <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="max-w-[1380px] w-full mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:py-0">
             
             {/* Title / Brand */}
@@ -570,7 +580,7 @@ export default function App() {
 
       {/* DETAILED USER INTENT INTRO CARD */}
       {showHelp && (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+        <div className="max-w-[1380px] mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
           <div className="bg-[#FAF8F5] border-l-4 border-[#DE6B48] rounded-r-xl p-4 sm:p-5 shadow-xs relative overflow-hidden">
             <button
               onClick={() => setShowHelp(false)}
@@ -594,7 +604,7 @@ export default function App() {
       )}
 
       {/* CORE APPLICATION CONTAINER */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="flex-1 max-w-[1380px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* VIEW 1: TODAY (今日对照明细) */}
         {activeTab === 'today' && (
@@ -668,7 +678,7 @@ export default function App() {
                   title="自动获取前一天的全部清单待办内容"
                 >
                   <Copy className="w-3.5 h-3.5 text-stone-500" />
-                  复制昨日待办
+                  复制昨日全部
                 </button>
               </div>
 
@@ -697,7 +707,7 @@ export default function App() {
               }}
             >
               {/* Binder line indicator to look like real notebook center crease */}
-              <div className="absolute top-0 bottom-0 left-1/2 -ml-0.5 w-[1px] bg-red-100 hidden lg:block pointer-events-none" />
+              <div className="absolute top-0 bottom-0 left-[62%] -ml-0.5 w-[1px] bg-red-100 hidden lg:block pointer-events-none" />
               
               {/* Vintage notebook header stamp */}
               <div className="border-b-4 border-[#8B5A2B] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
@@ -715,39 +725,59 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Step 1: weighted checklist */}
-              <TaskInspector
-                tasks={currentEntry.tasks}
-                onChange={handleTasksChange}
-              />
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-[#DED7CC] bg-[#FAF8F5]/95 p-1 shadow-sm lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileTodayView('review')}
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${mobileTodayView === 'review' ? 'bg-[#8B5A2B] text-white' : 'text-stone-600'}`}
+                >
+                  <BookOpen className="h-4 w-4" />查看与复盘
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileTodayView('plan')}
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${mobileTodayView === 'plan' ? 'bg-[#8B5A2B] text-white' : 'text-stone-600'}`}
+                >
+                  <Edit3 className="h-4 w-4" />编辑计划
+                </button>
+              </div>
 
-              {/* Step 2: Columns Compare Section */}
-              <TimelineSection
-                tasks={currentEntry.tasks}
-                plannedBlocks={currentEntry.plannedBlocks}
-                actualBlocks={currentEntry.actualBlocks}
-                onUpdatePlanned={(p) => updateCurrentEntry({
-                  plannedBlocks: p,
-                  plannedAt: p.length > 0 ? currentEntry.plannedAt ?? new Date().toISOString() : undefined,
-                })}
-                onUpdateActual={(a) => updateCurrentEntry({
-                  actualBlocks: a,
-                })}
-              />
+              <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(360px,1fr)] lg:gap-8">
+                <div className={`${mobileTodayView === 'review' ? 'hidden' : 'flex'} min-w-0 flex-col gap-5 lg:flex`}>
+                  <TimelineSection
+                    tasks={currentEntry.tasks}
+                    plannedBlocks={currentEntry.plannedBlocks}
+                    actualBlocks={currentEntry.actualBlocks}
+                    onUpdatePlanned={(p) => updateCurrentEntry({
+                      plannedBlocks: p,
+                      plannedAt: p.length > 0 ? currentEntry.plannedAt ?? new Date().toISOString() : undefined,
+                    })}
+                    onUpdateActual={(a) => updateCurrentEntry({ actualBlocks: a })}
+                  />
+                  <TaskInspector tasks={currentEntry.tasks} onChange={handleTasksChange} />
+                  <CategoryComparisonSection
+                    tasks={currentEntry.tasks}
+                    plannedBlocks={currentEntry.plannedBlocks}
+                    actualBlocks={currentEntry.actualBlocks}
+                  />
+                </div>
 
-              {/* Step 3: Summarize / Reviews */}
-              <ReviewSection
-                review={currentEntry.review}
-                tasks={currentEntry.tasks}
-                plannedBlocks={currentEntry.plannedBlocks}
-                actualBlocks={currentEntry.actualBlocks}
-                onChange={(review) => updateCurrentEntry({
-                  review,
-                  reviewedAt: review.biggestDeviation.trim() || review.improvement.trim() || review.generalNotes.trim()
-                    ? currentEntry.reviewedAt ?? new Date().toISOString()
-                    : undefined,
-                })}
-              />
+                <div className={`${mobileTodayView === 'plan' ? 'hidden' : 'block'} min-w-0 lg:block lg:h-full`}>
+                  <ReviewSection
+                    review={currentEntry.review}
+                    tasks={currentEntry.tasks}
+                    plannedBlocks={currentEntry.plannedBlocks}
+                    actualBlocks={currentEntry.actualBlocks}
+                    entries={entries}
+                    onChange={(review) => updateCurrentEntry({
+                      review,
+                      reviewedAt: review.biggestDeviation.trim() || review.improvement.trim() || review.generalNotes.trim()
+                        ? currentEntry.reviewedAt ?? new Date().toISOString()
+                        : undefined,
+                    })}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}

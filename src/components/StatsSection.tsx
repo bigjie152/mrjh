@@ -335,7 +335,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
                     <div key={item.name} className="space-y-1">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-semibold font-serif text-[#4A3B32] flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.value === 'work' ? '#3b82f6' : item.value === 'learning' ? '#10b981' : item.value === 'life' ? '#f59e0b' : item.value === 'sport' ? '#f43f5e' : item.value === 'leisure' ? '#6366f1' : '#64748b' }} />
+                          <span className="h-2.5 w-2.5 rounded-sm bg-[#D8C7AA]" />
                           {item.name}
                         </span>
                         <span className="text-[10px] font-mono text-stone-500">
@@ -351,7 +351,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
                         {/* Planned Bar (Dotted amber shadow) */}
                         <div className="w-full bg-stone-200/50 h-2 rounded-full overflow-hidden">
                           <div
-                            className="bg-amber-700/60 h-full rounded-full transition-all duration-500"
+                            className="h-full rounded-full bg-[#D8C7AA] transition-all duration-500"
                             style={{ width: `${plannedPercent}%` }}
                           />
                         </div>
@@ -370,7 +370,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ entries }) => {
             )}
             <div className="absolute bottom-2 right-4 flex items-center gap-3 text-[10px] text-stone-400 font-sans">
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2 bg-amber-700/60 inline-block rounded-sm" />
+                <span className="inline-block h-2 w-2.5 rounded-sm bg-[#D8C7AA]" />
                 预计
               </span>
               <span className="flex items-center gap-1">
