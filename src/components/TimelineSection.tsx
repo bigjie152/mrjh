@@ -348,19 +348,19 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
   return (
     <section className="rounded-xl border-2 border-[#EADFC9] bg-[#FAF8F5]/95 p-3 shadow-sm sm:p-4" id="comparison-ledger">
-      <div className="mb-4 flex flex-col gap-2 border-b border-[#EADFC9] pb-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-3 flex flex-col gap-2 border-b border-[#EADFC9] pb-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="font-serif text-base font-bold text-[#5c4033]">计划与实际对照</h3>
           <p className="mt-1 text-[11px] text-stone-400">计划是目标，实际记录当天真实发生的事情</p>
         </div>
         <span className="text-[10px] text-stone-400">{plannedBlocks.length} 个计划 · {actualBlocks.length} 条实际</span>
       </div>
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2" >
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-2" >
       {/* LEFT COLUMN: PLANNED (计划完成) */}
       <div className="relative overflow-hidden rounded-xl border border-[#EADFC9] bg-[#FFFDF9] p-3" id="planned-ledger">
         <div className="absolute inset-y-0 left-3 w-px bg-red-200" />
         
-        <div className="mb-4 flex flex-col gap-2 pl-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-2 pl-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-serif text-base sm:text-lg font-bold text-[#8B5A2B] tracking-wide flex flex-wrap items-center gap-1.5">
               <span>计划完成</span>
@@ -381,7 +381,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         </div>
 
         {/* Planned Blocks List */}
-        <div className="min-h-[260px] space-y-2.5 pl-4">
+        <div className="min-h-[260px] space-y-2 pl-4">
           {plannedBlocks.length === 0 ? (
             <div className="min-h-[220px] sm:h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-[#EADFC9] rounded-xl p-4 sm:p-6 text-center">
               <NotebookPen className="mb-2 h-7 w-7 text-amber-600/70" />
@@ -493,7 +493,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-[#F8FCF9] p-3" id="actual-ledger">
         <div className="absolute inset-y-0 left-3 w-px bg-red-200" />
 
-        <div className="mb-4 flex flex-col gap-2 pl-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-2 pl-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-serif text-base sm:text-lg font-bold text-emerald-900 tracking-wide flex flex-wrap items-center gap-1.5" style={{ color: '#065f46' }}>
               <span>实际完成</span>
@@ -527,7 +527,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         </div>
 
         {/* Actual Blocks List */}
-        <div className="min-h-[260px] space-y-2.5 pl-4">
+        <div className="min-h-[260px] space-y-2 pl-4">
           {actualBlocks.length === 0 ? (
             <div className="min-h-[220px] sm:h-[300px] flex flex-col items-center justify-center border-2 border-dashed border-emerald-200 rounded-xl p-4 sm:p-6 text-center">
               <Clock3 className="mb-2 h-7 w-7 text-emerald-700/70" />

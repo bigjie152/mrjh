@@ -608,7 +608,7 @@ export default function App() {
         
         {/* VIEW 1: TODAY (今日对照明细) */}
         {activeTab === 'today' && (
-          <div className="space-y-5 sm:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="space-y-5 lg:space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
             
             {/* Today Controller Toolbar */}
             <div className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -700,7 +700,7 @@ export default function App() {
             {/* PHYSICAL PAPER BUNDLE FOR EXPORT */}
             <div 
               id="print-paper-boundary" 
-              className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl sm:rounded-3xl p-3 sm:p-6 lg:p-8 shadow-md relative overflow-hidden space-y-5 sm:space-y-8"
+              className="bg-[#FAF8F5] border-2 border-[#EADFC9] rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-md relative overflow-hidden space-y-5 lg:space-y-6"
               style={{
                 backgroundImage: 'radial-gradient(#F0E6D2 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
@@ -742,8 +742,8 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(360px,1fr)] lg:gap-8">
-                <div className={`${mobileTodayView === 'review' ? 'hidden' : 'flex'} min-w-0 flex-col gap-5 lg:flex`}>
+              <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(360px,1fr)] lg:gap-4">
+                <div className={`${mobileTodayView === 'review' ? 'hidden' : 'flex'} min-w-0 flex-col gap-5 lg:flex lg:gap-4`}>
                   <TimelineSection
                     tasks={currentEntry.tasks}
                     plannedBlocks={currentEntry.plannedBlocks}
