@@ -296,7 +296,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
             <Award className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
               <h4 className="font-serif text-xs font-bold">延迟奖励账户</h4>
-              <p className="mt-1 text-[9px] text-stone-400">自 2026/07/14 起，实际工作、学习与运动满 8 小时，且实际休闲最多比计划多 1 小时，当日奖励 1 小时；上限 24 小时。</p>
+              <p className="mt-1 text-[9px] text-stone-400">行而不辍，终有清欢；张弛有度，方能致远。</p>
             </div>
           </div>
           <button
