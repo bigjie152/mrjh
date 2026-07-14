@@ -19,6 +19,11 @@ interface ComparisonSectionProps {
   actualBlocks: ActualBlock[];
 }
 
+const REWARD_POLICY_START_DATE = '2026-07-14';
+const REWARD_POLICY_START_TIME = Date.parse('2026-07-14T00:00:00+08:00');
+const REWARD_FOCUS_TARGET_MINUTES = 8 * 60;
+const REWARD_LEISURE_GRACE_MINUTES = 60;
+
 function getBreakdown(tasks: TaskItem[], plannedBlocks: PlannedBlock[], actualBlocks: ActualBlock[]) {
   return CATEGORIES.map((category) => {
     const planned = plannedBlocks
@@ -40,10 +45,9 @@ function getAlignmentScore(tasks: TaskItem[], plannedBlocks: PlannedBlock[], act
 }
 
 function qualifiesForReward(entry: DailyPlannerEntry) {
+  if (entry.date < REWARD_POLICY_START_DATE) return false;
+
   const focusCategories = new Set(['work', 'learning', 'sport']);
-  const plannedFocus = entry.plannedBlocks
-    .filter((block) => focusCategories.has(getBlockCategory(entry.tasks, block)))
-    .reduce((sum, block) => sum + block.estimatedMinutes, 0);
   const actualFocus = entry.actualBlocks
     .filter((block) => focusCategories.has(getBlockCategory(entry.tasks, block)))
     .reduce((sum, block) => sum + block.actualMinutes, 0);
@@ -54,37 +58,42 @@ function qualifiesForReward(entry: DailyPlannerEntry) {
     .filter((block) => getBlockCategory(entry.tasks, block) === 'leisure')
     .reduce((sum, block) => sum + block.actualMinutes, 0);
 
-  return plannedFocus > 0 && actualFocus >= plannedFocus * 0.8 && actualLeisure <= plannedLeisure + 30;
+  return (
+    actualFocus >= REWARD_FOCUS_TARGET_MINUTES &&
+    actualLeisure <= plannedLeisure + REWARD_LEISURE_GRACE_MINUTES
+  );
 }
 
 function getRewardAccount(entries: DailyPlannerEntry[]) {
   let balance = 0;
   const adjustments: RewardAdjustment[] = [];
-  const events: Array<{ minutes: number; createdAt: string }> = [];
+  const events: Array<{ minutes: number; occurredAt: number }> = [];
 
   entries.forEach((entry) => {
     if (qualifiesForReward(entry)) {
       events.push({
         minutes: 60,
-        createdAt: entry.reviewedAt ?? `${entry.date}T23:59:59.999`,
+        occurredAt: Date.parse(entry.reviewedAt ?? `${entry.date}T23:59:59+08:00`),
       });
     }
 
     (entry.review.rewardAdjustments ?? []).forEach((adjustment) => {
+      const occurredAt = Date.parse(adjustment.createdAt);
+      if (!Number.isFinite(occurredAt) || occurredAt < REWARD_POLICY_START_TIME) return;
       adjustments.push(adjustment);
-      events.push({ minutes: adjustment.minutes, createdAt: adjustment.createdAt });
+      events.push({ minutes: adjustment.minutes, occurredAt });
     });
   });
 
   events
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .sort((a, b) => a.occurredAt - b.occurredAt)
     .forEach((event) => {
       balance = Math.max(0, Math.min(24 * 60, balance + event.minutes));
     });
 
   return {
     balance,
-    recentAdjustments: adjustments.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3),
+    recentAdjustments: adjustments.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 3),
   };
 }
 
@@ -287,7 +296,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
             <Award className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
               <h4 className="font-serif text-xs font-bold">延迟奖励账户</h4>
-              <p className="mt-1 text-[9px] text-stone-400">专注投入达到计划 80%，且休闲不超计划 30 分钟，当日累积 1 小时；上限 24 小时。</p>
+              <p className="mt-1 text-[9px] text-stone-400">自 2026/07/14 起，实际工作、学习与运动满 8 小时，且实际休闲最多比计划多 1 小时，当日奖励 1 小时；上限 24 小时。</p>
             </div>
           </div>
           <button
