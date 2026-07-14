@@ -35,6 +35,14 @@ export interface DailyReview {
   biggestDeviation: string;
   improvement: string;
   generalNotes: string;
+  rewardAdjustments?: RewardAdjustment[];
+}
+
+export interface RewardAdjustment {
+  id: string;
+  minutes: number;
+  reason: string;
+  createdAt: string;
 }
 
 export interface DailyPlannerEntry {

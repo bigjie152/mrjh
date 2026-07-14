@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CategoryType, CATEGORIES, TaskItem } from '../types';
 import { getIndexSymbol, getNextTaskId, getTaskCategory } from '../plannerUtils';
 import { ArrowDown, ArrowUp, CheckCircle2, Circle, Edit2, GripVertical, Plus, Trash2 } from 'lucide-react';
@@ -12,6 +12,21 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
   const [editingId, setEditingId] = useState<number | null>(null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
+  const editingCardRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (editingId === null) return;
+
+    const finishEditingOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && editingCardRef.current && !editingCardRef.current.contains(target)) {
+        setEditingId(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', finishEditingOutside, true);
+    return () => document.removeEventListener('pointerdown', finishEditingOutside, true);
+  }, [editingId]);
 
   const updateTask = (id: number, patch: Partial<TaskItem>) => {
     onChange(tasks.map((task) => (task.id === id ? { ...task, ...patch } : task)));
@@ -102,7 +117,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 items-start gap-2 sm:gap-2.5 md:grid-cols-2">
           {tasks.map((task, idx) => {
             const symbol = getIndexSymbol(idx);
             const isEditing = editingId === task.id;
@@ -112,7 +127,8 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
             return (
               <div
                 key={task.id}
-                draggable
+                ref={isEditing ? editingCardRef : undefined}
+                draggable={!isEditing}
                 onDragStart={(event) => {
                   setDraggingId(task.id);
                   event.dataTransfer.effectAllowed = 'move';
@@ -127,7 +143,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                   setDraggingId(null);
                 }}
                 onDragEnd={() => setDraggingId(null)}
-                className={`relative flex flex-col p-2.5 sm:p-3 rounded-lg border transition-all duration-200 ${
+                className={`relative flex w-full flex-col rounded-lg border p-2 sm:p-2.5 transition-all duration-200 ${
                   task.completed
                     ? 'bg-stone-50 border-stone-200 opacity-75'
                     : isFilled
@@ -136,9 +152,12 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                 } ${draggingId === task.id ? 'opacity-50 ring-2 ring-amber-300' : ''}`}
                 onMouseEnter={() => setHoveredId(task.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                onKeyDown={(event) => {
+                  if (isEditing && event.key === 'Escape') setEditingId(null);
+                }}
                 id={`task-item-${task.id}`}
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2 pr-[74px]">
                   <span className="mt-1 text-stone-300 cursor-grab active:cursor-grabbing flex-shrink-0" title="拖拽排序">
                     <GripVertical className="w-3.5 h-3.5" />
                   </span>
@@ -225,12 +244,12 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                     )}
                   </div>
 
-                  <div className={`flex flex-col items-center gap-0.5 self-start ${hoveredId === task.id || isEditing ? 'opacity-100' : 'opacity-100 sm:opacity-0'} transition-opacity`}>
+                  <div className={`absolute right-1.5 top-1.5 flex items-center gap-0.5 ${hoveredId === task.id || isEditing ? 'opacity-100' : 'opacity-100 sm:opacity-0'} transition-opacity`}>
                     <button
                       type="button"
                       onClick={() => moveTask(task.id, -1)}
                       disabled={idx === 0}
-                      className="p-1 rounded-sm text-stone-400 hover:text-[#8B5A2B] hover:bg-amber-100/50 transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
+                      className="rounded-sm p-0.5 text-stone-400 transition-colors hover:bg-amber-100/50 hover:text-[#8B5A2B] disabled:opacity-20 disabled:hover:bg-transparent"
                       title="上移"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
@@ -239,7 +258,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                       type="button"
                       onClick={() => moveTask(task.id, 1)}
                       disabled={idx === tasks.length - 1}
-                      className="p-1 rounded-sm text-stone-400 hover:text-[#8B5A2B] hover:bg-amber-100/50 transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
+                      className="rounded-sm p-0.5 text-stone-400 transition-colors hover:bg-amber-100/50 hover:text-[#8B5A2B] disabled:opacity-20 disabled:hover:bg-transparent"
                       title="下移"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
@@ -247,7 +266,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                     <button
                       type="button"
                       onClick={() => setEditingId(task.id)}
-                      className="p-1 rounded-sm text-stone-400 hover:text-[#8B5A2B] hover:bg-amber-100/50 transition-colors"
+                      className="rounded-sm p-0.5 text-stone-400 transition-colors hover:bg-amber-100/50 hover:text-[#8B5A2B]"
                       title="编辑事项"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -255,7 +274,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({ tasks, onChange })
                     <button
                       type="button"
                       onClick={() => handleDeleteTask(task.id)}
-                      className="p-1 rounded-sm text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="rounded-sm p-0.5 text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                       title="删除事项"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

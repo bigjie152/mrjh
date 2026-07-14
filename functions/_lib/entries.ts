@@ -41,6 +41,20 @@ function isTimeBlock(value: unknown, kind: 'planned' | 'actual') {
   );
 }
 
+function isRewardAdjustment(value: unknown) {
+  return (
+    isObject(value) &&
+    hasText(value.id) &&
+    typeof value.minutes === 'number' &&
+    Number.isInteger(value.minutes) &&
+    value.minutes !== 0 &&
+    Math.abs(value.minutes) <= 24 * 60 &&
+    hasText(value.reason) &&
+    value.reason.length <= 80 &&
+    hasText(value.createdAt)
+  );
+}
+
 export function isDailyPlannerEntry(value: unknown): value is DailyPlannerEntry {
   return (
     isObject(value) &&
@@ -56,7 +70,9 @@ export function isDailyPlannerEntry(value: unknown): value is DailyPlannerEntry 
     isObject(value.review) &&
     hasText(value.review.biggestDeviation) &&
     hasText(value.review.improvement) &&
-    hasText(value.review.generalNotes)
+    hasText(value.review.generalNotes) &&
+    (value.review.rewardAdjustments === undefined ||
+      (Array.isArray(value.review.rewardAdjustments) && value.review.rewardAdjustments.every(isRewardAdjustment)))
   );
 }
 
