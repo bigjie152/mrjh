@@ -11,6 +11,10 @@
     "deploy": "npm run build && wrangler pages deploy dist",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "db:backup": "node scripts/backup-d1.mjs",
+    "mcp:start": "node --import tsx mcp/server.ts",
+    "mcp:token": "node scripts/mcp-token.mjs",
+    "test": "tsx --test tests/*.test.ts scripts/backup-d1.test.mjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
@@ -21,14 +25,19 @@
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260526.1",
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@modelcontextprotocol/server": "^2.3.1",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
+    "tsx": "^4.23.15",
     "typescript": "~5.8.2",
+    "undici": "^6.29.0",
     "vite": "^6.2.3",
     "wrangler": "^4.94.0"
   }

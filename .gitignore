@@ -9,6 +9,7 @@ build/
 
 # local data
 db.json
+/backups/
 
 # local env
 .env

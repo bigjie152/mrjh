@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActualBlock, AuthUser, DailyPlannerEntry, PlannedBlock, TaskItem } from './types';
 import { getWeekDayName, getLocalDateString, shiftDateString } from './sampleData';
 import { AuthScreen } from './components/AuthScreen';
@@ -9,33 +9,7 @@ import { HistorySection } from './components/HistorySection';
 import { StatsSection } from './components/StatsSection';
 import { Archive, BarChart2, BookOpen, Calendar, CalendarPlus, ClipboardCheck, Copy, Download, Edit3, LogOut, UserCircle } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
-
-const STORAGE_KEY = 'daily_planner_entries_v1';
-const SYNC_DEBOUNCE_MS = 700;
-
-function getStorageKey(userId: string) {
-  return `${STORAGE_KEY}:${userId}`;
-}
-
-function readStoredEntries(userId: string): DailyPlannerEntry[] | null {
-  try {
-    const stored = localStorage.getItem(getStorageKey(userId));
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (error) {
-    console.error('Failed to read local entries.', error);
-    return null;
-  }
-}
-
-function writeStoredEntries(userId: string, entries: DailyPlannerEntry[]) {
-  try {
-    localStorage.setItem(getStorageKey(userId), JSON.stringify(entries));
-  } catch (error) {
-    console.error('Failed to save entries to localStorage.', error);
-  }
-}
+import { usePlannerSync } from './usePlannerSync';
 
 function normalizeBlockTaskRefs<T extends PlannedBlock | ActualBlock>(block: T, retainedTaskIds: Set<number>): T {
   const refs = [block.taskRef, ...(block.taskRefs ?? [])]
@@ -88,14 +62,13 @@ function getEntryStatus(entry: DailyPlannerEntry) {
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'anonymous'>('loading');
-  const [entries, setEntries] = useState<DailyPlannerEntry[]>([]);
+  const sync = usePlannerSync(authUser?.id, normalizeEntries);
+  const { entries, saveEntries: saveAndSyncEntries } = sync;
   const [currentDate, setCurrentDate] = useState<string>(getLocalDateString);
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'stats'>('today');
   const [isExporting, setIsExporting] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
   const [mobileTodayView, setMobileTodayView] = useState<'review' | 'plan'>('review');
-  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSyncRef = useRef<DailyPlannerEntry[] | null>(null);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -119,173 +92,16 @@ export default function App() {
     loadCurrentUser();
   }, []);
 
-  // 1. Initialize State. Load from Cloudflare D1 backend, fallback to per-user LocalStorage.
-  useEffect(() => {
-    if (authStatus !== 'authenticated' || !authUser) return;
-
-    async function loadData() {
-      const storedEntries = readStoredEntries(authUser.id);
-
-      try {
-        const response = await fetch('/api/entries');
-        if (response.status === 401) {
-          setAuthUser(null);
-          setAuthStatus('anonymous');
-          setEntries([]);
-          return;
-        }
-
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            if (data.length > 0) {
-              const normalizedData = normalizeEntries(data);
-              setEntries(normalizedData);
-              writeStoredEntries(authUser.id, normalizedData);
-              if (JSON.stringify(data) !== JSON.stringify(normalizedData)) {
-                fetch('/api/entries', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(normalizedData),
-                }).catch((err) => {
-                  console.warn('Unable to persist normalized entries.', err);
-                });
-              }
-              return;
-            }
-
-            if (storedEntries && storedEntries.length > 0) {
-              const normalizedStoredEntries = normalizeEntries(storedEntries);
-              setEntries(normalizedStoredEntries);
-              fetch('/api/entries', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(normalizedStoredEntries),
-              }).catch((err) => {
-                console.warn('Unable to seed empty D1 database from local cache.', err);
-              });
-              return;
-            }
-
-            setEntries([]);
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Backend API offline or unreachable. Falling back to local cache.', err);
-      }
-
-      if (storedEntries && storedEntries.length > 0) {
-        const normalizedStoredEntries = normalizeEntries(storedEntries);
-        setEntries(normalizedStoredEntries);
-      } else {
-        setEntries([]);
-      }
-    }
-    loadData();
-  }, [authStatus, authUser]);
-
-  useEffect(() => {
-    const flushPendingSync = () => {
-      if (!pendingSyncRef.current) return;
-
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
-      }
-
-      const payload = JSON.stringify(pendingSyncRef.current);
-      const blob = new Blob([payload], { type: 'application/json' });
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/entries', blob);
-      } else {
-        fetch('/api/entries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch((err) => {
-          console.warn('Unable to flush pending sync.', err);
-        });
-      }
-
-      pendingSyncRef.current = null;
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        flushPendingSync();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pagehide', flushPendingSync);
-
-    return () => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pagehide', flushPendingSync);
-    };
-  }, []);
-
-  const queueServerSync = useCallback((updatedEntries: DailyPlannerEntry[]) => {
-    pendingSyncRef.current = updatedEntries;
-
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-
-    syncTimeoutRef.current = setTimeout(() => {
-      fetch('/api/entries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedEntries),
-      }).catch((err) => {
-        console.warn('Unable to sync to the server database.', err);
-      }).finally(() => {
-        if (pendingSyncRef.current === updatedEntries) {
-          pendingSyncRef.current = null;
-        }
-      });
-    }, SYNC_DEBOUNCE_MS);
-  }, []);
-
-  // 2. Save state helper (Persists immediately to local state & localstorage, fires backend update in background)
-  const saveAndSyncEntries = (updatedEntries: DailyPlannerEntry[]) => {
-    if (!authUser) return;
-
-    setEntries(updatedEntries);
-    writeStoredEntries(authUser.id, updatedEntries);
-    queueServerSync(updatedEntries);
-  };
-
   const handleAuthenticated = (user: AuthUser) => {
     setAuthUser(user);
     setAuthStatus('authenticated');
-    setEntries([]);
     setActiveTab('today');
   };
 
   const handleLogout = async () => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-      syncTimeoutRef.current = null;
-    }
-
-    if (pendingSyncRef.current) {
-      const payload = JSON.stringify(pendingSyncRef.current);
-      pendingSyncRef.current = null;
-      await fetch('/api/entries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      }).catch((error) => {
-        console.warn('Unable to sync before logout.', error);
-      });
+    if (!await sync.flush()) {
+      alert('还有未同步的修改，请先处理同步提示或导出本地副本。');
+      return;
     }
 
     await fetch('/api/auth/logout', { method: 'POST' }).catch((error) => {
@@ -294,7 +110,6 @@ export default function App() {
 
     setAuthUser(null);
     setAuthStatus('anonymous');
-    setEntries([]);
     setActiveTab('today');
   };
 
@@ -475,7 +290,7 @@ export default function App() {
     });
   };
 
-  if (authStatus === 'loading') {
+  if (authStatus === 'loading' || sync.loading) {
     return (
       <div className="min-h-screen bg-[#F4F1EA] text-[#4A3B32] flex items-center justify-center font-serif">
         <div className="rounded-2xl border-2 border-[#EADFC9] bg-[#FAF8F5] px-6 py-4 text-sm font-bold shadow-sm">
@@ -605,6 +420,13 @@ export default function App() {
 
       {/* CORE APPLICATION CONTAINER */}
       <main className="flex-1 max-w-[1380px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {sync.error && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 border-b border-amber-300 pb-3 text-sm text-amber-900">
+            <span className="flex-1">{sync.error}</span>
+            <button type="button" onClick={sync.exportLocal} className="underline">导出本地副本</button>
+            <button type="button" onClick={() => void sync.reload()} className="underline">重新读取云端</button>
+          </div>
+        )}
         
         {/* VIEW 1: TODAY (今日对照明细) */}
         {activeTab === 'today' && (
